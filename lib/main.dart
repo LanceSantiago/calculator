@@ -255,7 +255,7 @@ class _Keypad extends StatelessWidget {
           ]),
           _row([
             _Key(label: '_ _/_', kind: _KeyKind.fn, onPressed: () => act(calc.mixedSeparator)),
-            _Key(label: '0', flex: 2, onPressed: () => act(() => calc.digit(0))),
+            _Key(label: '0', onPressed: () => act(() => calc.digit(0))),
             _Key(label: '.', onPressed: () => act(calc.decimalPoint)),
             _Key(label: '=', kind: _KeyKind.equals, onPressed: () => act(calc.equals)),
           ]),
@@ -268,7 +268,7 @@ class _Keypad extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final k in keys) Expanded(flex: k.flex, child: k),
+          for (final k in keys) Expanded(child: k),
         ],
       ),
     );
@@ -281,14 +281,12 @@ class _Key extends StatelessWidget {
   final VoidCallback onPressed;
   final _KeyKind kind;
   final bool active;
-  final int flex;
 
   const _Key({
     required this.label,
     required this.onPressed,
     this.kind = _KeyKind.digit,
     this.active = false,
-    this.flex = 1,
   });
 
   @override
