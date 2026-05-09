@@ -52,11 +52,9 @@ class Calculator {
     if (_showingResult && _result != null) return _result!.format();
     if (_buffer.isEmpty) return '0';
     var body = _buffer.toString();
-    // Surface placeholders when the user is mid-fraction so they can see what
-    // the next digit will fill in.
-    if (body.endsWith(' ')) {
-      body = '${body}_/_';
-    } else if (body.endsWith('/')) {
+    // Surface a single-slot placeholder when the user is mid-fraction so they
+    // can see what the next digit will fill in.
+    if (body.endsWith(' ') || body.endsWith('/')) {
       body = '${body}_';
     }
     final unitSuffix = _entryUnit != null ? ' ${_entryUnit!.symbol}' : '';

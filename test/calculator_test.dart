@@ -173,16 +173,16 @@ void main() {
       final calc = Calculator()
         ..digit(1)..digit(1)
         ..mixedSeparator();
-      expect(calc.display, '11 _/_');
+      expect(calc.display, '11 _');
       calc.backspace();
       expect(calc.display, '11');
     });
 
-    test('display shows _/_ placeholder right after Mix tap', () {
+    test('display shows _ placeholder right after Mix tap', () {
       final calc = Calculator()
         ..digit(5)
         ..mixedSeparator();
-      expect(calc.display, '5 _/_');
+      expect(calc.display, '5 _');
     });
 
     test('display shows _ placeholder after fraction bar awaiting denominator', () {
@@ -207,7 +207,7 @@ void main() {
         ..digit(1)..digit(1)
         ..mixedSeparator()
         ..fractionBar();
-      expect(calc.display, '11 _/_');
+      expect(calc.display, '11 _');
     });
   });
 
