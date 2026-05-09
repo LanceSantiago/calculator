@@ -79,11 +79,11 @@ void main() {
     expect(crumb, '5 m +');
   });
 
-  testWidgets('Fract button enters a mixed-number operand', (tester) async {
+  testWidgets('mixed-number button enters a mixed-number operand', (tester) async {
     await tester.pumpWidget(const CalculatorApp());
     await _tap(tester, '1');
     await _tap(tester, '1');
-    await _tap(tester, 'Fract');
+    await _tap(tester, '_ _/_');
     await _tap(tester, '3');
     await _tap(tester, 'a/b');
     await _tap(tester, '4');

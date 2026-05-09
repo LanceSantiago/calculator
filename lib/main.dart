@@ -219,7 +219,7 @@ class _Keypad extends StatelessWidget {
             _Key(label: '+', kind: _KeyKind.op, onPressed: () => act(calc.operatorPlus)),
           ]),
           _row([
-            _Key(label: 'Fract', kind: _KeyKind.fn, onPressed: () => act(calc.mixedSeparator)),
+            _Key(label: '_ _/_', kind: _KeyKind.fn, onPressed: () => act(calc.mixedSeparator)),
             _Key(label: '0', onPressed: () => act(() => calc.digit(0))),
             _Key(label: '.', onPressed: () => act(calc.decimalPoint)),
             _Key(label: '=', kind: _KeyKind.equals, onPressed: () => act(calc.equals)),
@@ -231,6 +231,7 @@ class _Keypad extends StatelessWidget {
   Widget _row(List<_Key> keys) {
     return Expanded(
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (final k in keys) Expanded(child: k),
         ],
@@ -270,6 +271,8 @@ class _Key extends StatelessWidget {
         foregroundColor: fg,
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
         padding: EdgeInsets.zero,
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
       child: FittedBox(
         fit: BoxFit.scaleDown,
