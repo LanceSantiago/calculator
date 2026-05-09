@@ -12,10 +12,10 @@ Future<void> _tap(WidgetTester tester, String label) async {
 }
 
 void main() {
-  testWidgets('initial display shows 0', (tester) async {
+  testWidgets('initial display shows 0 with no convert button', (tester) async {
     await tester.pumpWidget(const CalculatorApp());
     expect(_displayText(tester), '0');
-    expect(find.byKey(const Key('toggle_system')), findsNothing);
+    expect(find.byKey(const Key('convert')), findsNothing);
   });
 
   testWidgets('tapping digits builds the display', (tester) async {
@@ -44,19 +44,43 @@ void main() {
     expect(_displayText(tester), "5' 0\"");
   });
 
-  testWidgets('toggle button appears after equals and switches systems', (tester) async {
+  testWidgets('convert button appears mid-entry once a unit is set', (tester) async {
     await tester.pumpWidget(const CalculatorApp());
-    await _tap(tester, '1');
+    await _tap(tester, '5');
+    expect(find.byKey(const Key('convert')), findsNothing);
+    await _tap(tester, 'm');
+    expect(find.byKey(const Key('convert')), findsOneWidget);
+  });
+
+  testWidgets('convert sheet picks a target unit and applies it', (tester) async {
+    await tester.pumpWidget(const CalculatorApp());
+    await _tap(tester, '5');
     await _tap(tester, 'm');
     await _tap(tester, '=');
-    expect(_displayText(tester), '1 m');
+    expect(_displayText(tester), '5 m');
 
-    final toggle = find.byKey(const Key('toggle_system'));
-    expect(toggle, findsOneWidget);
-    await tester.tap(toggle);
-    await tester.pump();
-    // 1 m ≥ 1 ft so it should pick foot, formatted as feet-inches.
+    await tester.tap(find.byKey(const Key('convert')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('convert_to_ft')));
+    await tester.pumpAndSettle();
+    // 5 m → ft, formatted as feet-inches: 5000 mm / 304.8 = 16.404 ft → 16' 4 13/16"
     expect(_displayText(tester).endsWith('"'), isTrue);
+  });
+
+  testWidgets('mid-entry convert: 8 m² → ft² without pressing equals', (tester) async {
+    await tester.pumpWidget(const CalculatorApp());
+    await _tap(tester, '8');
+    await _tap(tester, 'm');
+    await _tap(tester, '²');
+    // Convert button should be visible without tapping equals.
+    await tester.tap(find.byKey(const Key('convert')));
+    await tester.pumpAndSettle();
+    // Sheet should show area options (ft²) since type is area.
+    expect(find.byKey(const Key('convert_to_ft²')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('convert_to_ft²')));
+    await tester.pumpAndSettle();
+    // Display should now show the converted value with ft² suffix.
+    expect(_displayText(tester).endsWith('ft²'), isTrue);
   });
 
   testWidgets('clear resets to 0', (tester) async {

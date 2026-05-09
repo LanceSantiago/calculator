@@ -544,79 +544,104 @@ void main() {
       expect(calc.error, 'cannot add length and area');
     });
 
-    test('toggle on area result: m² ↔ ft²', () {
-      // 1 m² = 1 / (1524/5)² × ... actually just verify the displayUnit flips.
+    test('convert area result to a chosen unit', () {
       final calc = Calculator()
         ..digit(1)..unit(LengthUnit.meter)..square()
         ..equals();
       expect(calc.resultArea?.displayUnit, AreaUnit.squareMeter);
-      calc.toggleSystem();
+      calc.convertResultToArea(AreaUnit.squareFoot);
       expect(calc.resultArea?.displayUnit, AreaUnit.squareFoot);
-      calc.toggleSystem();
-      expect(calc.resultArea?.displayUnit, AreaUnit.squareMeter);
-    });
-
-    test('autopick on small area picks in² then mm²', () {
-      // 5 cm² → toggle imperial → in² (since 5 cm² < 1 ft²)
-      final calc = Calculator()
-        ..digit(5)..unit(LengthUnit.centimeter)..square()
-        ..equals();
-      calc.toggleSystem();
+      calc.convertResultToArea(AreaUnit.squareInch);
       expect(calc.resultArea?.displayUnit, AreaUnit.squareInch);
-      calc.toggleSystem();
-      // 5 cm² < 1 m², ≥ 1 cm² → cm²
-      expect(calc.resultArea?.displayUnit, AreaUnit.squareCentimeter);
     });
   });
 
-  group('Calculator result system toggle', () {
-    test('toggle from metric meters to imperial feet-inches', () {
+  group('Calculator convert result', () {
+    test('convertResultToLength changes the displayed unit', () {
       final calc = Calculator()
         ..digit(1)..unit(LengthUnit.meter)
         ..equals();
-      calc.toggleSystem();
+      calc.convertResultToLength(LengthUnit.foot);
       expect(calc.result?.displayUnit, LengthUnit.foot);
     });
 
-    test('autopick: 5 cm result toggles to inches not feet', () {
+    test('mid-entry convert: 5 m → ft commits and converts in one shot', () {
       final calc = Calculator()
-        ..digit(5)..unit(LengthUnit.centimeter)
-        ..equals();
-      calc.toggleSystem();
-      expect(calc.result?.displayUnit, LengthUnit.inch);
+        ..digit(5)..unit(LengthUnit.meter);
+      // No equals tapped — convert should commit first.
+      calc.convertResultToLength(LengthUnit.foot);
+      expect(calc.hasResult, isTrue);
+      expect(calc.result?.displayUnit, LengthUnit.foot);
+      expect(calc.result?.millimeters, Rational.fromInt(5000));
     });
 
-    test('autopick: 1 ft result toggles to centimeters', () {
+    test('mid-entry convert area: 8 m² → ft² commits and converts', () {
       final calc = Calculator()
-        ..digit(1)..unit(LengthUnit.foot)
-        ..equals();
-      calc.toggleSystem();
-      expect(calc.result?.displayUnit, LengthUnit.centimeter);
+        ..digit(8)..unit(LengthUnit.meter)..square();
+      calc.convertResultToArea(AreaUnit.squareFoot);
+      expect(calc.hasResult, isTrue);
+      expect(calc.resultArea?.displayUnit, AreaUnit.squareFoot);
+      // 8 m² = 8 000 000 mm² (exact)
+      expect(calc.resultArea?.squareMillimeters, Rational.fromInt(8000000));
     });
 
-    test('autopick: 5 m → ft → m round-trip', () {
+    test('mid-chain convert applies the pending operator first', () {
+      final calc = Calculator()
+        ..digit(5)..unit(LengthUnit.meter)
+        ..operatorPlus()
+        ..digit(3)..unit(LengthUnit.meter);
+      calc.convertResultToLength(LengthUnit.foot);
+      // 5 m + 3 m = 8 m, then displayed as ft
+      expect(calc.result?.displayUnit, LengthUnit.foot);
+      expect(calc.result?.millimeters, Rational.fromInt(8000));
+    });
+
+    test('canConvert: false on empty buffer', () {
+      final calc = Calculator();
+      expect(calc.canConvert, isFalse);
+      expect(calc.convertType, isNull);
+    });
+
+    test('canConvert: false when entry has no unit', () {
+      final calc = Calculator()..digit(5);
+      expect(calc.canConvert, isFalse);
+    });
+
+    test('canConvert: true with mid-entry length', () {
+      final calc = Calculator()
+        ..digit(5)..unit(LengthUnit.meter);
+      expect(calc.canConvert, isTrue);
+      expect(calc.convertType, DimensionType.length);
+    });
+
+    test('canConvert: true with mid-entry area', () {
+      final calc = Calculator()
+        ..digit(5)..unit(LengthUnit.meter)..square();
+      expect(calc.canConvert, isTrue);
+      expect(calc.convertType, DimensionType.area);
+    });
+
+    test('canConvert: true with a displayed result', () {
       final calc = Calculator()
         ..digit(5)..unit(LengthUnit.meter)
         ..equals();
-      calc.toggleSystem();
-      expect(calc.result?.displayUnit, LengthUnit.foot);
-      calc.toggleSystem();
-      expect(calc.result?.displayUnit, LengthUnit.meter);
+      expect(calc.canConvert, isTrue);
+      expect(calc.convertType, DimensionType.length);
     });
 
-    test('autopick: tiny metric value picks mm', () {
+    test('convertResultToArea is a no-op for a length result', () {
       final calc = Calculator()
-        ..digit(5)..unit(LengthUnit.millimeter)
+        ..digit(5)..unit(LengthUnit.meter)
         ..equals();
-      calc.toggleSystem();
-      expect(calc.result?.displayUnit, LengthUnit.inch);
-      calc.toggleSystem();
-      expect(calc.result?.displayUnit, LengthUnit.millimeter);
+      // Pass an area unit, but result is length — should leave it alone.
+      calc.convertResultToArea(AreaUnit.squareFoot);
+      expect(calc.result?.displayUnit, LengthUnit.meter);
+      expect(calc.resultArea, isNull);
     });
 
-    test('toggle does nothing without a result', () {
-      final calc = Calculator()..digit(5);
-      calc.toggleSystem();
+    test('convertResultToLength does nothing without a convertible state', () {
+      final calc = Calculator()..digit(5); // no unit
+      calc.convertResultToLength(LengthUnit.foot);
       expect(calc.display, '5');
       expect(calc.hasResult, isFalse);
     });

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'src/area.dart';
 import 'src/calculator.dart';
 import 'src/length.dart';
 
@@ -61,6 +62,22 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     );
   }
 
+  Future<void> _openConvertSheet() async {
+    final type = _calc.convertType;
+    if (type == null) return;
+    final selected = await showModalBottomSheet<Object>(
+      context: context,
+      builder: (_) => _ConvertSheet(type: type),
+    );
+    if (selected is LengthUnit) {
+      final unit = selected;
+      _act(() => _calc.convertResultToLength(unit));
+    } else if (selected is AreaUnit) {
+      final unit = selected;
+      _act(() => _calc.convertResultToArea(unit));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -72,9 +89,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               child: _Display(
                 text: _calc.display,
                 expression: _calc.expression,
-                hasResult: _calc.hasResult,
                 hasError: _calc.error != null,
-                onToggle: () => _act(_calc.toggleSystem),
+                canConvert: _calc.canConvert,
+                onConvert: _openConvertSheet,
                 onAbout: _showAbout,
               ),
             ),
@@ -92,17 +109,17 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 class _Display extends StatelessWidget {
   final String text;
   final String expression;
-  final bool hasResult;
   final bool hasError;
-  final VoidCallback onToggle;
+  final bool canConvert;
+  final VoidCallback onConvert;
   final VoidCallback onAbout;
 
   const _Display({
     required this.text,
     required this.expression,
-    required this.hasResult,
     required this.hasError,
-    required this.onToggle,
+    required this.canConvert,
+    required this.onConvert,
     required this.onAbout,
   });
 
@@ -122,14 +139,14 @@ class _Display extends StatelessWidget {
               onPressed: onAbout,
             ),
           ),
-          if (hasResult)
+          if (canConvert)
             Align(
               alignment: Alignment.topRight,
               child: FilledButton.tonalIcon(
-                key: const Key('toggle_system'),
-                onPressed: onToggle,
+                key: const Key('convert'),
+                onPressed: onConvert,
                 icon: const Icon(Icons.swap_horiz, size: 18),
-                label: const Text('Metric / Imperial'),
+                label: const Text('Convert'),
               ),
             ),
           Column(
@@ -288,6 +305,99 @@ class _Key extends StatelessWidget {
             fontSize: kind == _KeyKind.unit || label == 'a/b' ? 18 : 26,
             fontWeight: FontWeight.w500,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ConvertSheet extends StatelessWidget {
+  final DimensionType type;
+
+  const _ConvertSheet({required this.type});
+
+  static const _lengthNames = {
+    LengthUnit.millimeter: 'Millimeter',
+    LengthUnit.centimeter: 'Centimeter',
+    LengthUnit.meter: 'Meter',
+    LengthUnit.inch: 'Inch',
+    LengthUnit.foot: 'Foot',
+    LengthUnit.yard: 'Yard',
+  };
+
+  static const _areaNames = {
+    AreaUnit.squareMillimeter: 'Square millimeter',
+    AreaUnit.squareCentimeter: 'Square centimeter',
+    AreaUnit.squareMeter: 'Square meter',
+    AreaUnit.squareInch: 'Square inch',
+    AreaUnit.squareFoot: 'Square foot',
+    AreaUnit.squareYard: 'Square yard',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    Widget header(String text) => Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+          child: Text(
+            text.toUpperCase(),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.2,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        );
+
+    final tiles = <Widget>[];
+    if (type == DimensionType.length) {
+      final metric = LengthUnit.values.where((u) => u.isMetric);
+      final imperial = LengthUnit.values.where((u) => !u.isMetric);
+      tiles.add(header('Metric'));
+      tiles.addAll(metric.map((u) => ListTile(
+            key: Key('convert_to_${u.symbol}'),
+            title: Text(_lengthNames[u]!),
+            trailing: Text(u.symbol,
+                style: TextStyle(fontSize: 16, color: scheme.onSurfaceVariant)),
+            onTap: () => Navigator.of(context).pop(u),
+          )));
+      tiles.add(header('Imperial'));
+      tiles.addAll(imperial.map((u) => ListTile(
+            key: Key('convert_to_${u.symbol}'),
+            title: Text(_lengthNames[u]!),
+            trailing: Text(u.symbol,
+                style: TextStyle(fontSize: 16, color: scheme.onSurfaceVariant)),
+            onTap: () => Navigator.of(context).pop(u),
+          )));
+    } else {
+      final metric = AreaUnit.values.where((u) => u.isMetric);
+      final imperial = AreaUnit.values.where((u) => !u.isMetric);
+      tiles.add(header('Metric'));
+      tiles.addAll(metric.map((u) => ListTile(
+            key: Key('convert_to_${u.symbol}'),
+            title: Text(_areaNames[u]!),
+            trailing: Text(u.symbol,
+                style: TextStyle(fontSize: 16, color: scheme.onSurfaceVariant)),
+            onTap: () => Navigator.of(context).pop(u),
+          )));
+      tiles.add(header('Imperial'));
+      tiles.addAll(imperial.map((u) => ListTile(
+            key: Key('convert_to_${u.symbol}'),
+            title: Text(_areaNames[u]!),
+            trailing: Text(u.symbol,
+                style: TextStyle(fontSize: 16, color: scheme.onSurfaceVariant)),
+            onTap: () => Navigator.of(context).pop(u),
+          )));
+    }
+
+    return SafeArea(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [const SizedBox(height: 8), ...tiles, const SizedBox(height: 8)],
         ),
       ),
     );

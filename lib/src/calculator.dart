@@ -4,6 +4,10 @@ import 'rational.dart';
 
 enum CalcOp { add, subtract, multiply, divide }
 
+/// Distinguishes the dimensionality of a convertible value so the UI can show
+/// the appropriate set of unit options in the convert sheet.
+enum DimensionType { length, area }
+
 sealed class _Operand {
   const _Operand();
 }
@@ -82,6 +86,38 @@ class Calculator {
 
   String? get error => _error;
   bool get hasResult => _showingResult && _result != null && _error == null;
+
+  /// Whether unit conversion can do something useful right now. True if there's
+  /// a displayed result, a unit-bearing accumulator, or a mid-entry value with
+  /// a unit attached.
+  bool get canConvert {
+    if (_error != null) return false;
+    if (_showingResult && _result != null) return true;
+    if (_accumulator is _LengthOperand || _accumulator is _AreaOperand) {
+      return true;
+    }
+    if (_buffer.isNotEmpty && _entryUnit != null) return true;
+    return false;
+  }
+
+  /// Whether the conversion target is length or area, so the UI can show the
+  /// appropriate set of unit options. Null when nothing convertible is in play.
+  DimensionType? get convertType {
+    if (!canConvert) return null;
+    if (_showingResult) {
+      return switch (_result) {
+        _LengthResult() => DimensionType.length,
+        _AreaResult() => DimensionType.area,
+        _ => null,
+      };
+    }
+    if (_accumulator is _LengthOperand) return DimensionType.length;
+    if (_accumulator is _AreaOperand) return DimensionType.area;
+    if (_buffer.isNotEmpty && _entryUnit != null) {
+      return _isSquared ? DimensionType.area : DimensionType.length;
+    }
+    return null;
+  }
 
   Length? get result {
     if (!hasResult) return null;
@@ -266,40 +302,37 @@ class Calculator {
     if (last == ' ') _hasSpace = false;
   }
 
-  void toggleSystem() {
-    if (!hasResult) return;
-    switch (_result) {
-      case _LengthResult(value: final v):
-        _result = _LengthResult(v.toUnit(_autoPickLengthUnit(v)));
-      case _AreaResult(value: final v):
-        _result = _AreaResult(v.toUnit(_autoPickAreaUnit(v)));
-      case _:
-        return;
+  /// Convert the displayed result to a specific length unit. If the user is
+  /// mid-entry, this implicitly commits the entry first (like equals + change
+  /// display unit). No-op if the convertType is not length.
+  void convertResultToLength(LengthUnit unit) {
+    if (!_ensureResult()) return;
+    if (_result is _LengthResult) {
+      final v = (_result as _LengthResult).value;
+      _result = _LengthResult(v.toUnit(unit));
     }
   }
 
-  LengthUnit _autoPickLengthUnit(Length value) {
-    final mm = value.millimeters.abs();
-    if (value.displayUnit.isMetric) {
-      return mm >= LengthUnit.foot.mmPerUnit ? LengthUnit.foot : LengthUnit.inch;
+  /// Convert the displayed result to a specific area unit. If the user is
+  /// mid-entry, this implicitly commits the entry first. No-op if the
+  /// convertType is not area.
+  void convertResultToArea(AreaUnit unit) {
+    if (!_ensureResult()) return;
+    if (_result is _AreaResult) {
+      final v = (_result as _AreaResult).value;
+      _result = _AreaResult(v.toUnit(unit));
     }
-    if (mm >= LengthUnit.meter.mmPerUnit) return LengthUnit.meter;
-    if (mm >= LengthUnit.centimeter.mmPerUnit) return LengthUnit.centimeter;
-    return LengthUnit.millimeter;
   }
 
-  AreaUnit _autoPickAreaUnit(Area value) {
-    final mm2 = value.squareMillimeters.abs();
-    if (value.displayUnit.isMetric) {
-      return mm2 >= AreaUnit.squareFoot.sqMmPerUnit
-          ? AreaUnit.squareFoot
-          : AreaUnit.squareInch;
+  /// Commits any mid-entry state into a result so a conversion can target it.
+  /// Returns false if no convertible value is available.
+  bool _ensureResult() {
+    if (!canConvert) return false;
+    if (!_showingResult) {
+      equals();
+      if (_error != null || !_showingResult) return false;
     }
-    if (mm2 >= AreaUnit.squareMeter.sqMmPerUnit) return AreaUnit.squareMeter;
-    if (mm2 >= AreaUnit.squareCentimeter.sqMmPerUnit) {
-      return AreaUnit.squareCentimeter;
-    }
-    return AreaUnit.squareMillimeter;
+    return true;
   }
 
   _Operand? _commitEntry() {
