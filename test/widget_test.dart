@@ -108,6 +108,42 @@ void main() {
     expect(_displayText(tester), '8 m');
   });
 
+  testWidgets('² button squares the unit in display', (tester) async {
+    await tester.pumpWidget(const CalculatorApp());
+    await _tap(tester, '5');
+    await _tap(tester, 'm');
+    await _tap(tester, '²');
+    expect(_displayText(tester), '5 m²');
+  });
+
+  testWidgets('end-to-end area: 5 m × 3 m = 15 m²', (tester) async {
+    await tester.pumpWidget(const CalculatorApp());
+    await _tap(tester, '5');
+    await _tap(tester, 'm');
+    await _tap(tester, '×');
+    await _tap(tester, '3');
+    await _tap(tester, 'm');
+    await _tap(tester, '=');
+    expect(_displayText(tester), '15 m²');
+  });
+
+  testWidgets('end-to-end direct area entry: 200 ft² + 300 ft² = 500 ft²', (tester) async {
+    await tester.pumpWidget(const CalculatorApp());
+    await _tap(tester, '2');
+    await _tap(tester, '0');
+    await _tap(tester, '0');
+    await _tap(tester, 'ft');
+    await _tap(tester, '²');
+    await _tap(tester, '+');
+    await _tap(tester, '3');
+    await _tap(tester, '0');
+    await _tap(tester, '0');
+    await _tap(tester, 'ft');
+    await _tap(tester, '²');
+    await _tap(tester, '=');
+    expect(_displayText(tester), '500 ft²');
+  });
+
   testWidgets('About button opens the about dialog', (tester) async {
     await tester.pumpWidget(const CalculatorApp());
     await tester.tap(find.byKey(const Key('about_button')));

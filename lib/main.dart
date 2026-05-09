@@ -184,7 +184,8 @@ class _Keypad extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
         children: [
-          // Unit row — 6 inline buttons for direct selection.
+          // Unit row — 6 length units plus a ² modifier that squares the
+          // current unit (turns 5 m into 5 m², for area arithmetic).
           _row([
             for (final u in LengthUnit.values)
               _Key(
@@ -192,6 +193,11 @@ class _Keypad extends StatelessWidget {
                 kind: _KeyKind.unit,
                 onPressed: () => act(() => calc.unit(u)),
               ),
+            _Key(
+              label: '²',
+              kind: _KeyKind.unit,
+              onPressed: () => act(calc.square),
+            ),
           ]),
           // Function/operator row
           _row([
