@@ -173,9 +173,31 @@ void main() {
       final calc = Calculator()
         ..digit(1)..digit(1)
         ..mixedSeparator();
-      expect(calc.display, '11 ');
+      expect(calc.display, '11 _/_');
       calc.backspace();
       expect(calc.display, '11');
+    });
+
+    test('display shows _/_ placeholder right after Mix tap', () {
+      final calc = Calculator()
+        ..digit(5)
+        ..mixedSeparator();
+      expect(calc.display, '5 _/_');
+    });
+
+    test('display shows _ placeholder after fraction bar awaiting denominator', () {
+      final calc = Calculator()
+        ..digit(1)
+        ..fractionBar();
+      expect(calc.display, '1/_');
+    });
+
+    test('placeholders disappear once digits are typed', () {
+      final calc = Calculator()
+        ..digit(5)
+        ..mixedSeparator()
+        ..digit(3);
+      expect(calc.display, '5 3');
     });
 
     test('fraction bar is rejected immediately after Mix space', () {
@@ -185,7 +207,7 @@ void main() {
         ..digit(1)..digit(1)
         ..mixedSeparator()
         ..fractionBar();
-      expect(calc.display, '11 ');
+      expect(calc.display, '11 _/_');
     });
   });
 

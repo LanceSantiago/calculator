@@ -51,8 +51,16 @@ class Calculator {
     if (_error != null) return _error!;
     if (_showingResult && _result != null) return _result!.format();
     if (_buffer.isEmpty) return '0';
+    var body = _buffer.toString();
+    // Surface placeholders when the user is mid-fraction so they can see what
+    // the next digit will fill in.
+    if (body.endsWith(' ')) {
+      body = '${body}_/_';
+    } else if (body.endsWith('/')) {
+      body = '${body}_';
+    }
     final unitSuffix = _entryUnit != null ? ' ${_entryUnit!.symbol}' : '';
-    return '$_buffer$unitSuffix';
+    return '$body$unitSuffix';
   }
 
   String get expression => _expressionParts.join(' ');
