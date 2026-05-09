@@ -1,3 +1,4 @@
+import 'area.dart';
 import 'length.dart';
 import 'rational.dart';
 
@@ -12,6 +13,11 @@ class _LengthOperand extends _Operand {
   const _LengthOperand(this.value);
 }
 
+class _AreaOperand extends _Operand {
+  final Area value;
+  const _AreaOperand(this.value);
+}
+
 class _ScalarOperand extends _Operand {
   final Rational value;
   const _ScalarOperand(this.value);
@@ -22,50 +28,76 @@ class _CalcError implements Exception {
   _CalcError(this.message);
 }
 
-/// Chained calculator with mixed-unit length arithmetic.
+sealed class _Result {
+  const _Result();
+}
+
+class _LengthResult extends _Result {
+  final Length value;
+  const _LengthResult(this.value);
+}
+
+class _AreaResult extends _Result {
+  final Area value;
+  const _AreaResult(this.value);
+}
+
+/// Chained calculator with mixed-unit length + area arithmetic.
 ///
 /// Semantics:
-/// - The first operand in a chain MUST have a unit. The calculator errors
-///   on the first operator press (or equals) if it doesn't.
+/// - The first operand in a chain MUST have a unit (Length or Area).
 /// - Subsequent operands without a unit inherit the unit from the running
-///   accumulator, so `5m + 3 = 8m`.
-/// - `×` / `÷` allow Length×Scalar but not Length×Length (no area).
+///   accumulator (length stays length, area stays area).
+/// - `Length × Length = Area`, `Area / Length = Length`. Cross-dimensional
+///   adds (Length + Area) and higher-dimensional products (Length × Area,
+///   Area × Area) are errors.
 class Calculator {
   final StringBuffer _buffer = StringBuffer();
   bool _hasDecimal = false;
   bool _hasSlash = false;
   bool _hasSpace = false;
   LengthUnit? _entryUnit;
+  bool _isSquared = false;
 
   _Operand? _accumulator;
   CalcOp? _pendingOp;
   bool _showingResult = false;
-  Length? _result;
+  _Result? _result;
   String? _error;
 
-  /// Committed parts of the running expression, in order: operand, op, operand,
-  /// op, ... Used to render the breadcrumb above the main display.
   final List<String> _expressionParts = [];
 
   String get display {
     if (_error != null) return _error!;
-    if (_showingResult && _result != null) return _result!.format();
+    if (_showingResult && _result != null) return _formattedResult();
     if (_buffer.isEmpty) return '0';
     var body = _buffer.toString();
-    // Surface a single-slot placeholder when the user is mid-fraction so they
-    // can see what the next digit will fill in.
     if (body.endsWith(' ') || body.endsWith('/')) {
       body = '${body}_';
     }
-    final unitSuffix = _entryUnit != null ? ' ${_entryUnit!.symbol}' : '';
-    return '$body$unitSuffix';
+    return '$body${_entryUnitSuffix()}';
   }
 
   String get expression => _expressionParts.join(' ');
 
   String? get error => _error;
   bool get hasResult => _showingResult && _result != null && _error == null;
-  Length? get result => _showingResult && _error == null ? _result : null;
+
+  Length? get result {
+    if (!hasResult) return null;
+    return switch (_result) {
+      _LengthResult(value: final v) => v,
+      _ => null,
+    };
+  }
+
+  Area? get resultArea {
+    if (!hasResult) return null;
+    return switch (_result) {
+      _AreaResult(value: final v) => v,
+      _ => null,
+    };
+  }
 
   void digit(int d) {
     if (_error != null) return;
@@ -87,15 +119,11 @@ class Calculator {
     if (_showingResult) _resetAll();
     if (_hasDecimal || _hasSlash) return;
     if (_buffer.isEmpty) return;
-    // After a Mix space, the buffer ends in a space — need a digit between
-    // space and slash, otherwise we'd produce "5 /" which won't parse.
     if (_buffer.toString().endsWith(' ')) return;
     _buffer.write('/');
     _hasSlash = true;
   }
 
-  /// Inserts the whole/numerator separator for mixed-number entry: tap after
-  /// typing the whole part, then enter the fraction.
   void mixedSeparator() {
     if (_error != null) return;
     if (_showingResult) _resetAll();
@@ -107,8 +135,17 @@ class Calculator {
 
   void unit(LengthUnit u) {
     if (_error != null) return;
-    if (_showingResult) return; // use toggleSystem to retarget the result
+    if (_showingResult) return;
     _entryUnit = u;
+  }
+
+  /// Tagged the current entry as a squared unit (m → m², ft → ft², etc.).
+  /// Toggle: pressing again removes the squared flag. No-op if no unit set.
+  void square() {
+    if (_error != null) return;
+    if (_showingResult) return;
+    if (_entryUnit == null) return;
+    _isSquared = !_isSquared;
   }
 
   void operatorPlus() => _operator(CalcOp.add);
@@ -119,10 +156,10 @@ class Calculator {
   void _operator(CalcOp op) {
     if (_error != null) return;
     if (_showingResult) {
-      _accumulator = _LengthOperand(_result!);
+      _accumulator = _operandFromResult();
       _expressionParts
         ..clear()
-        ..add(_result!.format())
+        ..add(_formattedResult())
         ..add(_opSymbol(op));
       _showingResult = false;
       _result = null;
@@ -153,8 +190,6 @@ class Calculator {
       }
       _expressionParts.add(_opSymbol(op));
     } else {
-      // No new entry — user changed their mind on the operator. Replace the
-      // trailing op symbol if there is one.
       if (_expressionParts.isNotEmpty &&
           _isOperatorString(_expressionParts.last)) {
         _expressionParts[_expressionParts.length - 1] = _opSymbol(op);
@@ -190,13 +225,20 @@ class Calculator {
     } else if (entry == null &&
         _expressionParts.isNotEmpty &&
         _isOperatorString(_expressionParts.last)) {
-      // Trailing operator with no second operand: drop it from the expression.
       _expressionParts.removeLast();
     }
 
-    if (_accumulator is _LengthOperand) {
-      _result = (_accumulator as _LengthOperand).value;
-      _showingResult = true;
+    switch (_accumulator) {
+      case _LengthOperand(value: final v):
+        _result = _LengthResult(v);
+        _showingResult = true;
+      case _AreaOperand(value: final v):
+        _result = _AreaResult(v);
+        _showingResult = true;
+      case _ScalarOperand():
+        _error = 'no unit';
+      case null:
+        return;
     }
   }
 
@@ -205,6 +247,10 @@ class Calculator {
   void backspace() {
     if (_error != null) return;
     if (_showingResult) return;
+    if (_isSquared) {
+      _isSquared = false;
+      return;
+    }
     if (_entryUnit != null) {
       _entryUnit = null;
       return;
@@ -222,20 +268,38 @@ class Calculator {
 
   void toggleSystem() {
     if (!hasResult) return;
-    final newUnit = _autoPickUnit(_result!);
-    _result = _result!.toUnit(newUnit);
+    switch (_result) {
+      case _LengthResult(value: final v):
+        _result = _LengthResult(v.toUnit(_autoPickLengthUnit(v)));
+      case _AreaResult(value: final v):
+        _result = _AreaResult(v.toUnit(_autoPickAreaUnit(v)));
+      case _:
+        return;
+    }
   }
 
-  LengthUnit _autoPickUnit(Length value) {
+  LengthUnit _autoPickLengthUnit(Length value) {
     final mm = value.millimeters.abs();
     if (value.displayUnit.isMetric) {
-      // metric → imperial: ft if at least 1 ft, else in
       return mm >= LengthUnit.foot.mmPerUnit ? LengthUnit.foot : LengthUnit.inch;
     }
-    // imperial → metric: m if >= 1 m, cm if >= 1 cm, else mm
     if (mm >= LengthUnit.meter.mmPerUnit) return LengthUnit.meter;
     if (mm >= LengthUnit.centimeter.mmPerUnit) return LengthUnit.centimeter;
     return LengthUnit.millimeter;
+  }
+
+  AreaUnit _autoPickAreaUnit(Area value) {
+    final mm2 = value.squareMillimeters.abs();
+    if (value.displayUnit.isMetric) {
+      return mm2 >= AreaUnit.squareFoot.sqMmPerUnit
+          ? AreaUnit.squareFoot
+          : AreaUnit.squareInch;
+    }
+    if (mm2 >= AreaUnit.squareMeter.sqMmPerUnit) return AreaUnit.squareMeter;
+    if (mm2 >= AreaUnit.squareCentimeter.sqMmPerUnit) {
+      return AreaUnit.squareCentimeter;
+    }
+    return AreaUnit.squareMillimeter;
   }
 
   _Operand? _commitEntry() {
@@ -250,15 +314,38 @@ class Calculator {
       _error = 'invalid number';
       return null;
     }
-    return _entryUnit != null
-        ? _LengthOperand(Length.of(value, _entryUnit!))
-        : _ScalarOperand(value);
+    if (_entryUnit != null) {
+      return _isSquared
+          ? _AreaOperand(Area.of(value, AreaUnit.forLength(_entryUnit!)))
+          : _LengthOperand(Length.of(value, _entryUnit!));
+    }
+    return _ScalarOperand(value);
+  }
+
+  String _entryUnitSuffix() {
+    if (_entryUnit == null) return '';
+    return ' ${_entryUnit!.symbol}${_isSquared ? "²" : ""}';
   }
 
   String _formatEntryForExpression() {
     if (_buffer.isEmpty) return '';
-    final unit = _entryUnit != null ? ' ${_entryUnit!.symbol}' : '';
-    return '$_buffer$unit';
+    return '$_buffer${_entryUnitSuffix()}';
+  }
+
+  String _formattedResult() {
+    return switch (_result) {
+      _LengthResult(value: final v) => v.format(),
+      _AreaResult(value: final v) => v.format(),
+      _ => '',
+    };
+  }
+
+  _Operand _operandFromResult() {
+    return switch (_result) {
+      _LengthResult(value: final v) => _LengthOperand(v),
+      _AreaResult(value: final v) => _AreaOperand(v),
+      null => throw StateError('no result to continue from'),
+    };
   }
 
   static String _opSymbol(CalcOp op) {
@@ -283,6 +370,7 @@ class Calculator {
     _hasSlash = false;
     _hasSpace = false;
     _entryUnit = null;
+    _isSquared = false;
   }
 
   void _resetAll() {
@@ -304,32 +392,66 @@ class Calculator {
             op == CalcOp.add ? a.value + b.value : a.value - b.value,
           );
         }
+        if (a is _AreaOperand && b is _AreaOperand) {
+          return _AreaOperand(
+            op == CalcOp.add ? a.value + b.value : a.value - b.value,
+          );
+        }
         if (a is _LengthOperand && b is _ScalarOperand) {
-          // Subsequent scalar inherits the running unit.
           final inferred = Length.of(b.value, a.value.displayUnit);
           return _LengthOperand(
             op == CalcOp.add ? a.value + inferred : a.value - inferred,
           );
         }
-        // a is ScalarOperand shouldn't happen given the first-value check.
-        throw _CalcError('+/− require units');
+        if (a is _AreaOperand && b is _ScalarOperand) {
+          final inferred = Area.of(b.value, a.value.displayUnit);
+          return _AreaOperand(
+            op == CalcOp.add ? a.value + inferred : a.value - inferred,
+          );
+        }
+        // Cross-dimensional: length + area or area + length
+        throw _CalcError('cannot add length and area');
       case CalcOp.multiply:
+        if (a is _LengthOperand && b is _LengthOperand) {
+          return _AreaOperand(Area.fromLengths(a.value, b.value));
+        }
         if (a is _LengthOperand && b is _ScalarOperand) {
           return _LengthOperand(a.value * b.value);
         }
         if (a is _ScalarOperand && b is _LengthOperand) {
           return _LengthOperand(b.value * a.value);
         }
+        if (a is _AreaOperand && b is _ScalarOperand) {
+          return _AreaOperand(a.value * b.value);
+        }
+        if (a is _ScalarOperand && b is _AreaOperand) {
+          return _AreaOperand(b.value * a.value);
+        }
         if (a is _ScalarOperand && b is _ScalarOperand) {
           return _ScalarOperand(a.value * b.value);
         }
-        throw _CalcError('cannot multiply two lengths');
+        throw _CalcError('cannot multiply at this dimension');
       case CalcOp.divide:
         if (b is _ScalarOperand && b.value.isZero) {
           throw _CalcError('divide by zero');
         }
+        if (b is _LengthOperand && b.value.millimeters.isZero) {
+          throw _CalcError('divide by zero');
+        }
+        if (b is _AreaOperand && b.value.squareMillimeters.isZero) {
+          throw _CalcError('divide by zero');
+        }
         if (a is _LengthOperand && b is _ScalarOperand) {
           return _LengthOperand(a.value / b.value);
+        }
+        if (a is _AreaOperand && b is _ScalarOperand) {
+          return _AreaOperand(a.value / b.value);
+        }
+        if (a is _AreaOperand && b is _LengthOperand) {
+          // Area ÷ Length = Length, taking the divisor's display unit.
+          final mm = a.value.squareMillimeters / b.value.millimeters;
+          final unit = b.value.displayUnit;
+          return _LengthOperand(Length.of(mm / unit.mmPerUnit, unit));
         }
         if (a is _ScalarOperand && b is _ScalarOperand) {
           return _ScalarOperand(a.value / b.value);

@@ -1,3 +1,4 @@
+import 'decimal.dart';
 import 'rational.dart';
 
 enum LengthUnit {
@@ -155,7 +156,7 @@ class Length {
       case LengthUnit.meter:
       case LengthUnit.yard:
         final value = valueIn(displayUnit);
-        return '${_toDecimalString(value, decimals ?? 4)} ${displayUnit.symbol}';
+        return '${formatDecimal(value, decimals ?? 4)} ${displayUnit.symbol}';
       case LengthUnit.inch:
         final value = valueIn(displayUnit);
         return '${_toMixedFraction(value, maxDenominator ?? 16)} ${displayUnit.symbol}';
@@ -163,55 +164,6 @@ class Length {
         return _toFeetInches(valueIn(LengthUnit.inch), maxDenominator ?? 16);
     }
   }
-}
-
-String _toDecimalString(Rational value, int maxDecimals) {
-  if (value.isZero) return '0';
-  final neg = value.isNegative;
-  final abs = value.abs();
-  var whole = abs.numerator ~/ abs.denominator;
-  var remainder = abs.numerator % abs.denominator;
-
-  if (remainder == BigInt.zero || maxDecimals == 0) {
-    return (neg ? '-' : '') + whole.toString();
-  }
-
-  final digits = <int>[];
-  for (var i = 0; i < maxDecimals; i++) {
-    remainder *= BigInt.from(10);
-    digits.add((remainder ~/ abs.denominator).toInt());
-    remainder = remainder % abs.denominator;
-    if (remainder == BigInt.zero) break;
-  }
-
-  // Round half-up using the next digit if we still have remainder.
-  if (remainder != BigInt.zero) {
-    remainder *= BigInt.from(10);
-    final next = (remainder ~/ abs.denominator).toInt();
-    if (next >= 5) {
-      var i = digits.length - 1;
-      while (i >= 0) {
-        if (digits[i] < 9) {
-          digits[i]++;
-          break;
-        }
-        digits[i] = 0;
-        i--;
-      }
-      if (i < 0) {
-        whole += BigInt.one;
-      }
-    }
-  }
-
-  while (digits.isNotEmpty && digits.last == 0) {
-    digits.removeLast();
-  }
-
-  if (digits.isEmpty) {
-    return (neg ? '-' : '') + whole.toString();
-  }
-  return '${neg ? '-' : ''}$whole.${digits.join()}';
 }
 
 /// Returns "5 3/4", "1/2", "7", or "0" — caller appends the unit symbol.

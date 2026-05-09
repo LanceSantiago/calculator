@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:calculator/src/area.dart';
 import 'package:calculator/src/calculator.dart';
 import 'package:calculator/src/length.dart';
 import 'package:calculator/src/rational.dart';
@@ -360,13 +361,13 @@ void main() {
       expect(calc.error, 'tap a unit first');
     });
 
-    test('Length × Length still errors (no area)', () {
+    test('cross-dimensional addition errors (Length + Area)', () {
       final calc = Calculator()
         ..digit(2)..unit(LengthUnit.meter)
-        ..operatorTimes()
-        ..digit(3)..unit(LengthUnit.meter)
+        ..operatorPlus()
+        ..digit(3)..unit(LengthUnit.meter)..square()
         ..equals();
-      expect(calc.error, 'cannot multiply two lengths');
+      expect(calc.error, 'cannot add length and area');
     });
 
     test('division by zero errors', () {
@@ -453,6 +454,118 @@ void main() {
         ..operatorPlus();
       calc.clear();
       expect(calc.expression, '');
+    });
+  });
+
+  group('Calculator area arithmetic', () {
+    test('Length × Length produces Area in matching unit', () {
+      final calc = Calculator()
+        ..digit(5)..unit(LengthUnit.meter)
+        ..operatorTimes()
+        ..digit(3)..unit(LengthUnit.meter)
+        ..equals();
+      expect(calc.resultArea, Area.of(Rational.fromInt(15), AreaUnit.squareMeter));
+      expect(calc.result, isNull);
+    });
+
+    test('square button entry: 200 ft² + 300 ft² = 500 ft²', () {
+      final calc = Calculator()
+        ..digit(2)..digit(0)..digit(0)..unit(LengthUnit.foot)..square()
+        ..operatorPlus()
+        ..digit(3)..digit(0)..digit(0)..unit(LengthUnit.foot)..square()
+        ..equals();
+      expect(calc.resultArea,
+          Area.of(Rational.fromInt(500), AreaUnit.squareFoot));
+    });
+
+    test('Area × scalar', () {
+      final calc = Calculator()
+        ..digit(5)..unit(LengthUnit.meter)..square()
+        ..operatorTimes()
+        ..digit(2)
+        ..equals();
+      expect(calc.resultArea,
+          Area.of(Rational.fromInt(10), AreaUnit.squareMeter));
+    });
+
+    test('Area ÷ Length = Length, taking divisor display unit', () {
+      // 100 m² ÷ 5 m = 20 m
+      final calc = Calculator()
+        ..digit(1)..digit(0)..digit(0)..unit(LengthUnit.meter)..square()
+        ..operatorDivide()
+        ..digit(5)..unit(LengthUnit.meter)
+        ..equals();
+      expect(calc.result, Length.of(Rational.fromInt(20), LengthUnit.meter));
+      expect(calc.resultArea, isNull);
+    });
+
+    test('square toggles off when pressed twice', () {
+      final calc = Calculator()
+        ..digit(5)..unit(LengthUnit.meter)..square()..square();
+      expect(calc.display, '5 m');
+    });
+
+    test('square is a no-op without a unit set', () {
+      final calc = Calculator()
+        ..digit(5)..square();
+      expect(calc.display, '5');
+    });
+
+    test('display shows squared unit suffix', () {
+      final calc = Calculator()
+        ..digit(5)..unit(LengthUnit.meter)..square();
+      expect(calc.display, '5 m²');
+    });
+
+    test('backspace clears the squared flag before the unit', () {
+      final calc = Calculator()
+        ..digit(5)..unit(LengthUnit.meter)..square();
+      calc.backspace();
+      expect(calc.display, '5 m');
+      calc.backspace();
+      expect(calc.display, '5');
+    });
+
+    test('Length × Area errors (would be volume)', () {
+      final calc = Calculator()
+        ..digit(2)..unit(LengthUnit.meter)
+        ..operatorTimes()
+        ..digit(3)..unit(LengthUnit.meter)..square()
+        ..equals();
+      expect(calc.error, isNotNull);
+    });
+
+    test('Area + Length errors', () {
+      final calc = Calculator()
+        ..digit(2)..unit(LengthUnit.meter)..square()
+        ..operatorPlus()
+        ..digit(3)..unit(LengthUnit.meter)
+        ..equals();
+      expect(calc.error, 'cannot add length and area');
+    });
+
+    test('toggle on area result: m² ↔ ft²', () {
+      // 1 m² = 1 / (1524/5)² × ... actually just verify the displayUnit flips.
+      final calc = Calculator()
+        ..digit(1)..unit(LengthUnit.meter)..square()
+        ..equals();
+      expect(calc.resultArea?.displayUnit, AreaUnit.squareMeter);
+      calc.toggleSystem();
+      expect(calc.resultArea?.displayUnit, AreaUnit.squareFoot);
+      calc.toggleSystem();
+      expect(calc.resultArea?.displayUnit, AreaUnit.squareMeter);
+    });
+
+    test('autopick on small area picks in² then mm²', () {
+      // 5 cm² → toggle imperial → in² (since 5 cm² < 1 ft²)
+      final calc = Calculator()
+        ..digit(5)..unit(LengthUnit.centimeter)..square()
+        ..equals();
+      calc.toggleSystem();
+      expect(calc.resultArea?.displayUnit, AreaUnit.squareInch);
+      calc.toggleSystem();
+      // 5 cm² < 1 m², ≥ 1 cm² → cm²
+      expect(calc.resultArea?.displayUnit, AreaUnit.squareCentimeter);
     });
   });
 
