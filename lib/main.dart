@@ -148,15 +148,13 @@ class _Keypad extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
         children: [
-          // Unit row (6 cells)
-          _row([
-            for (final u in LengthUnit.values)
-              _Key(
-                label: u.symbol,
-                kind: _KeyKind.unit,
-                onPressed: () => act(() => calc.unit(u)),
-              ),
-          ]),
+          // Unit picker — opens a modal sheet with the full list grouped by system.
+          Expanded(
+            child: _UnitButton(
+              currentUnit: calc.entryUnit,
+              onPressed: () => _openUnitPicker(context),
+            ),
+          ),
           // Function/operator row
           _row([
             _Key(label: 'C', kind: _KeyKind.clear, onPressed: () => act(calc.clear)),
@@ -183,7 +181,7 @@ class _Keypad extends StatelessWidget {
             _Key(label: '+', kind: _KeyKind.op, onPressed: () => act(calc.operatorPlus)),
           ]),
           _row([
-            _Key(label: 'Mix', kind: _KeyKind.fn, onPressed: () => act(calc.mixedSeparator)),
+            _Key(label: '1¾', kind: _KeyKind.fn, onPressed: () => act(calc.mixedSeparator)),
             _Key(label: '0', onPressed: () => act(() => calc.digit(0))),
             _Key(label: '.', onPressed: () => act(calc.decimalPoint)),
             _Key(label: '=', kind: _KeyKind.equals, onPressed: () => act(calc.equals)),
@@ -198,6 +196,110 @@ class _Keypad extends StatelessWidget {
         children: [
           for (final k in keys) Expanded(child: k),
         ],
+      ),
+    );
+  }
+
+  Future<void> _openUnitPicker(BuildContext context) async {
+    final selected = await showModalBottomSheet<LengthUnit>(
+      context: context,
+      builder: (_) => const _UnitPickerSheet(),
+    );
+    if (selected != null) {
+      act(() => calc.unit(selected));
+    }
+  }
+}
+
+class _UnitButton extends StatelessWidget {
+  final LengthUnit? currentUnit;
+  final VoidCallback onPressed;
+
+  const _UnitButton({required this.currentUnit, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final label = currentUnit != null ? currentUnit!.symbol : 'Pick a unit';
+    return FilledButton(
+      key: const Key('unit_picker'),
+      onPressed: onPressed,
+      style: FilledButton.styleFrom(
+        backgroundColor: scheme.tertiaryContainer,
+        foregroundColor: scheme.onTertiaryContainer,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        padding: EdgeInsets.zero,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
+          const SizedBox(width: 6),
+          const Icon(Icons.keyboard_arrow_up, size: 20),
+        ],
+      ),
+    );
+  }
+}
+
+class _UnitPickerSheet extends StatelessWidget {
+  const _UnitPickerSheet();
+
+  static const _names = {
+    LengthUnit.millimeter: 'Millimeter',
+    LengthUnit.centimeter: 'Centimeter',
+    LengthUnit.meter: 'Meter',
+    LengthUnit.inch: 'Inch',
+    LengthUnit.foot: 'Foot',
+    LengthUnit.yard: 'Yard',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final metric = LengthUnit.values.where((u) => u.isMetric);
+    final imperial = LengthUnit.values.where((u) => !u.isMetric);
+
+    Widget header(String text) => Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+          child: Text(
+            text.toUpperCase(),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.2,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        );
+
+    Widget tile(LengthUnit u) => ListTile(
+          key: Key('unit_option_${u.symbol}'),
+          title: Text(_names[u]!),
+          trailing: Text(
+            u.symbol,
+            style: TextStyle(
+              fontSize: 16,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          onTap: () => Navigator.of(context).pop(u),
+        );
+
+    return SafeArea(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 8),
+            header('Metric'),
+            ...metric.map(tile),
+            header('Imperial'),
+            ...imperial.map(tile),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }
