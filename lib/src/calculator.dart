@@ -61,10 +61,6 @@ class Calculator {
   bool get hasResult => _showingResult && _result != null && _error == null;
   Length? get result => _showingResult && _error == null ? _result : null;
 
-  /// The unit the user has tagged onto the current entry, if any. Used by the
-  /// UI to label the unit-picker button with the active selection.
-  LengthUnit? get entryUnit => _entryUnit;
-
   void digit(int d) {
     if (_error != null) return;
     if (_showingResult) _resetAll();

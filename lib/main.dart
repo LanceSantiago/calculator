@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'src/calculator.dart';
 import 'src/length.dart';
@@ -14,12 +15,17 @@ class CalculatorApp extends StatelessWidget {
       title: 'Calculator',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueGrey),
+        useMaterial3: true,
+      ),
+      darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.blueGrey,
           brightness: Brightness.dark,
         ),
         useMaterial3: true,
       ),
+      themeMode: ThemeMode.system,
       home: const CalculatorScreen(),
     );
   }
@@ -35,7 +41,25 @@ class CalculatorScreen extends StatefulWidget {
 class _CalculatorScreenState extends State<CalculatorScreen> {
   final Calculator _calc = Calculator();
 
-  void _act(VoidCallback action) => setState(action);
+  void _act(VoidCallback action) {
+    HapticFeedback.selectionClick();
+    setState(action);
+  }
+
+  void _showAbout() {
+    showAboutDialog(
+      context: context,
+      applicationName: 'Calculator',
+      applicationVersion: '1.0.0',
+      applicationIcon: const Icon(Icons.calculate, size: 48),
+      applicationLegalese:
+          '© 2026 Joseph Lance Santiago\nLicensed under the Apache License 2.0',
+      children: const [
+        SizedBox(height: 12),
+        Text('Construction calculator with mixed-unit arithmetic.'),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +75,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 hasResult: _calc.hasResult,
                 hasError: _calc.error != null,
                 onToggle: () => _act(_calc.toggleSystem),
+                onAbout: _showAbout,
               ),
             ),
             Expanded(
@@ -70,6 +95,7 @@ class _Display extends StatelessWidget {
   final bool hasResult;
   final bool hasError;
   final VoidCallback onToggle;
+  final VoidCallback onAbout;
 
   const _Display({
     required this.text,
@@ -77,6 +103,7 @@ class _Display extends StatelessWidget {
     required this.hasResult,
     required this.hasError,
     required this.onToggle,
+    required this.onAbout,
   });
 
   @override
@@ -86,6 +113,15 @@ class _Display extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
       child: Stack(
         children: [
+          Align(
+            alignment: Alignment.topLeft,
+            child: IconButton(
+              key: const Key('about_button'),
+              icon: const Icon(Icons.info_outline),
+              tooltip: 'About',
+              onPressed: onAbout,
+            ),
+          ),
           if (hasResult)
             Align(
               alignment: Alignment.topRight,
@@ -148,13 +184,15 @@ class _Keypad extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
         children: [
-          // Unit picker — opens a modal sheet with the full list grouped by system.
-          Expanded(
-            child: _UnitButton(
-              currentUnit: calc.entryUnit,
-              onPressed: () => _openUnitPicker(context),
-            ),
-          ),
+          // Unit row — 6 inline buttons for direct selection.
+          _row([
+            for (final u in LengthUnit.values)
+              _Key(
+                label: u.symbol,
+                kind: _KeyKind.unit,
+                onPressed: () => act(() => calc.unit(u)),
+              ),
+          ]),
           // Function/operator row
           _row([
             _Key(label: 'C', kind: _KeyKind.clear, onPressed: () => act(calc.clear)),
@@ -181,7 +219,7 @@ class _Keypad extends StatelessWidget {
             _Key(label: '+', kind: _KeyKind.op, onPressed: () => act(calc.operatorPlus)),
           ]),
           _row([
-            _Key(label: '1¾', kind: _KeyKind.fn, onPressed: () => act(calc.mixedSeparator)),
+            _Key(label: 'Fract', kind: _KeyKind.fn, onPressed: () => act(calc.mixedSeparator)),
             _Key(label: '0', onPressed: () => act(() => calc.digit(0))),
             _Key(label: '.', onPressed: () => act(calc.decimalPoint)),
             _Key(label: '=', kind: _KeyKind.equals, onPressed: () => act(calc.equals)),
@@ -200,109 +238,6 @@ class _Keypad extends StatelessWidget {
     );
   }
 
-  Future<void> _openUnitPicker(BuildContext context) async {
-    final selected = await showModalBottomSheet<LengthUnit>(
-      context: context,
-      builder: (_) => const _UnitPickerSheet(),
-    );
-    if (selected != null) {
-      act(() => calc.unit(selected));
-    }
-  }
-}
-
-class _UnitButton extends StatelessWidget {
-  final LengthUnit? currentUnit;
-  final VoidCallback onPressed;
-
-  const _UnitButton({required this.currentUnit, required this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final label = currentUnit != null ? currentUnit!.symbol : 'Pick a unit';
-    return FilledButton(
-      key: const Key('unit_picker'),
-      onPressed: onPressed,
-      style: FilledButton.styleFrom(
-        backgroundColor: scheme.tertiaryContainer,
-        foregroundColor: scheme.onTertiaryContainer,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        padding: EdgeInsets.zero,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(label, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
-          const SizedBox(width: 6),
-          const Icon(Icons.keyboard_arrow_up, size: 20),
-        ],
-      ),
-    );
-  }
-}
-
-class _UnitPickerSheet extends StatelessWidget {
-  const _UnitPickerSheet();
-
-  static const _names = {
-    LengthUnit.millimeter: 'Millimeter',
-    LengthUnit.centimeter: 'Centimeter',
-    LengthUnit.meter: 'Meter',
-    LengthUnit.inch: 'Inch',
-    LengthUnit.foot: 'Foot',
-    LengthUnit.yard: 'Yard',
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final metric = LengthUnit.values.where((u) => u.isMetric);
-    final imperial = LengthUnit.values.where((u) => !u.isMetric);
-
-    Widget header(String text) => Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
-          child: Text(
-            text.toUpperCase(),
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1.2,
-              color: scheme.onSurfaceVariant,
-            ),
-          ),
-        );
-
-    Widget tile(LengthUnit u) => ListTile(
-          key: Key('unit_option_${u.symbol}'),
-          title: Text(_names[u]!),
-          trailing: Text(
-            u.symbol,
-            style: TextStyle(
-              fontSize: 16,
-              color: scheme.onSurfaceVariant,
-            ),
-          ),
-          onTap: () => Navigator.of(context).pop(u),
-        );
-
-    return SafeArea(
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 8),
-            header('Metric'),
-            ...metric.map(tile),
-            header('Imperial'),
-            ...imperial.map(tile),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _Key extends StatelessWidget {
