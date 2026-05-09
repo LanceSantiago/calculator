@@ -71,7 +71,7 @@ void main() {
     await tester.pumpWidget(const CalculatorApp());
     await _tap(tester, '8');
     await _tap(tester, 'm');
-    await _tap(tester, '²');
+    await _tap(tester, 'x²');
     // Convert button should be visible without tapping equals.
     await tester.tap(find.byKey(const Key('convert')));
     await tester.pumpAndSettle();
@@ -132,11 +132,11 @@ void main() {
     expect(_displayText(tester), '8 m');
   });
 
-  testWidgets('² button squares the unit in display', (tester) async {
+  testWidgets('x² button squares the unit in display', (tester) async {
     await tester.pumpWidget(const CalculatorApp());
     await _tap(tester, '5');
     await _tap(tester, 'm');
-    await _tap(tester, '²');
+    await _tap(tester, 'x²');
     expect(_displayText(tester), '5 m²');
   });
 
@@ -157,13 +157,13 @@ void main() {
     await _tap(tester, '0');
     await _tap(tester, '0');
     await _tap(tester, 'ft');
-    await _tap(tester, '²');
+    await _tap(tester, 'x²');
     await _tap(tester, '+');
     await _tap(tester, '3');
     await _tap(tester, '0');
     await _tap(tester, '0');
     await _tap(tester, 'ft');
-    await _tap(tester, '²');
+    await _tap(tester, 'x²');
     await _tap(tester, '=');
     expect(_displayText(tester), '500 ft²');
   });

@@ -100,6 +100,10 @@ class Calculator {
     return false;
   }
 
+  /// Whether the current entry has the squared modifier active. UI uses this
+  /// to highlight the `x²` key.
+  bool get isSquared => _isSquared;
+
   /// Whether the conversion target is length or area, so the UI can show the
   /// appropriate set of unit options. Null when nothing convertible is in play.
   DimensionType? get convertType {

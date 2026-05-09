@@ -191,6 +191,17 @@ class _Display extends StatelessWidget {
 
 enum _KeyKind { digit, op, fn, clear, equals, unit }
 
+/// Length units shown on the keypad's unit row. Yards are intentionally
+/// excluded — rarely used in construction work; conversion to/from yd is still
+/// possible via the convert sheet if it ever surfaces a result there.
+const _keypadUnits = [
+  LengthUnit.millimeter,
+  LengthUnit.centimeter,
+  LengthUnit.meter,
+  LengthUnit.inch,
+  LengthUnit.foot,
+];
+
 class _Keypad extends StatelessWidget {
   final Calculator calc;
   final void Function(VoidCallback) act;
@@ -201,18 +212,19 @@ class _Keypad extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
         children: [
-          // Unit row — 6 length units plus a ² modifier that squares the
-          // current unit (turns 5 m into 5 m², for area arithmetic).
+          // Unit row — 5 length units (yd dropped, rarely used in
+          // construction) plus an x² modifier that squares the current unit.
           _row([
-            for (final u in LengthUnit.values)
+            for (final u in _keypadUnits)
               _Key(
                 label: u.symbol,
                 kind: _KeyKind.unit,
                 onPressed: () => act(() => calc.unit(u)),
               ),
             _Key(
-              label: '²',
+              label: 'x²',
               kind: _KeyKind.unit,
+              active: calc.isSquared,
               onPressed: () => act(calc.square),
             ),
           ]),
@@ -243,7 +255,7 @@ class _Keypad extends StatelessWidget {
           ]),
           _row([
             _Key(label: '_ _/_', kind: _KeyKind.fn, onPressed: () => act(calc.mixedSeparator)),
-            _Key(label: '0', onPressed: () => act(() => calc.digit(0))),
+            _Key(label: '0', flex: 2, onPressed: () => act(() => calc.digit(0))),
             _Key(label: '.', onPressed: () => act(calc.decimalPoint)),
             _Key(label: '=', kind: _KeyKind.equals, onPressed: () => act(calc.equals)),
           ]),
@@ -256,7 +268,7 @@ class _Keypad extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final k in keys) Expanded(child: k),
+          for (final k in keys) Expanded(flex: k.flex, child: k),
         ],
       ),
     );
@@ -268,24 +280,30 @@ class _Key extends StatelessWidget {
   final String label;
   final VoidCallback onPressed;
   final _KeyKind kind;
+  final bool active;
+  final int flex;
 
   const _Key({
     required this.label,
     required this.onPressed,
     this.kind = _KeyKind.digit,
+    this.active = false,
+    this.flex = 1,
   });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final (bg, fg) = switch (kind) {
-      _KeyKind.digit => (scheme.surfaceContainerHigh, scheme.onSurface),
-      _KeyKind.op => (scheme.secondaryContainer, scheme.onSecondaryContainer),
-      _KeyKind.fn => (scheme.surfaceContainer, scheme.onSurfaceVariant),
-      _KeyKind.clear => (scheme.errorContainer, scheme.onErrorContainer),
-      _KeyKind.equals => (scheme.primary, scheme.onPrimary),
-      _KeyKind.unit => (scheme.tertiaryContainer, scheme.onTertiaryContainer),
-    };
+    final (bg, fg) = active
+        ? (scheme.tertiary, scheme.onTertiary)
+        : switch (kind) {
+            _KeyKind.digit => (scheme.surfaceContainerHigh, scheme.onSurface),
+            _KeyKind.op => (scheme.secondaryContainer, scheme.onSecondaryContainer),
+            _KeyKind.fn => (scheme.surfaceContainer, scheme.onSurfaceVariant),
+            _KeyKind.clear => (scheme.errorContainer, scheme.onErrorContainer),
+            _KeyKind.equals => (scheme.primary, scheme.onPrimary),
+            _KeyKind.unit => (scheme.tertiaryContainer, scheme.onTertiaryContainer),
+          };
     return FilledButton(
       key: Key('key_$label'),
       onPressed: onPressed,
@@ -302,7 +320,7 @@ class _Key extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            fontSize: kind == _KeyKind.unit || label == 'a/b' ? 18 : 26,
+            fontSize: kind == _KeyKind.unit || label == 'a/b' ? 22 : 26,
             fontWeight: FontWeight.w500,
           ),
         ),
