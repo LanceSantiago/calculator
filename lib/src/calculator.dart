@@ -25,13 +25,16 @@ class _CalcError implements Exception {
 /// Chained calculator with mixed-unit length arithmetic.
 ///
 /// Semantics:
-/// - `+` / `−` require both operands to be Lengths.
-/// - `×` / `÷` allow Length×Scalar or Scalar×Scalar (no Length×Length).
-/// - The first unit in a chain wins for the result's display unit.
+/// - The first operand in a chain MUST have a unit. The calculator errors
+///   on the first operator press (or equals) if it doesn't.
+/// - Subsequent operands without a unit inherit the unit from the running
+///   accumulator, so `5m + 3 = 8m`.
+/// - `×` / `÷` allow Length×Scalar but not Length×Length (no area).
 class Calculator {
   final StringBuffer _buffer = StringBuffer();
   bool _hasDecimal = false;
   bool _hasSlash = false;
+  bool _hasSpace = false;
   LengthUnit? _entryUnit;
 
   _Operand? _accumulator;
@@ -40,6 +43,10 @@ class Calculator {
   Length? _result;
   String? _error;
 
+  /// Committed parts of the running expression, in order: operand, op, operand,
+  /// op, ... Used to render the breadcrumb above the main display.
+  final List<String> _expressionParts = [];
+
   String get display {
     if (_error != null) return _error!;
     if (_showingResult && _result != null) return _result!.format();
@@ -47,6 +54,8 @@ class Calculator {
     final unitSuffix = _entryUnit != null ? ' ${_entryUnit!.symbol}' : '';
     return '$_buffer$unitSuffix';
   }
+
+  String get expression => _expressionParts.join(' ');
 
   String? get error => _error;
   bool get hasResult => _showingResult && _result != null && _error == null;
@@ -61,7 +70,7 @@ class Calculator {
   void decimalPoint() {
     if (_error != null) return;
     if (_showingResult) _resetAll();
-    if (_hasDecimal || _hasSlash) return;
+    if (_hasDecimal || _hasSlash || _hasSpace) return;
     if (_buffer.isEmpty) _buffer.write('0');
     _buffer.write('.');
     _hasDecimal = true;
@@ -72,8 +81,22 @@ class Calculator {
     if (_showingResult) _resetAll();
     if (_hasDecimal || _hasSlash) return;
     if (_buffer.isEmpty) return;
+    // After a Mix space, the buffer ends in a space — need a digit between
+    // space and slash, otherwise we'd produce "5 /" which won't parse.
+    if (_buffer.toString().endsWith(' ')) return;
     _buffer.write('/');
     _hasSlash = true;
+  }
+
+  /// Inserts the whole/numerator separator for mixed-number entry: tap after
+  /// typing the whole part, then enter the fraction.
+  void mixedSeparator() {
+    if (_error != null) return;
+    if (_showingResult) _resetAll();
+    if (_hasDecimal || _hasSlash || _hasSpace) return;
+    if (_buffer.isEmpty) return;
+    _buffer.write(' ');
+    _hasSpace = true;
   }
 
   void unit(LengthUnit u) {
@@ -91,6 +114,10 @@ class Calculator {
     if (_error != null) return;
     if (_showingResult) {
       _accumulator = _LengthOperand(_result!);
+      _expressionParts
+        ..clear()
+        ..add(_result!.format())
+        ..add(_opSymbol(op));
       _showingResult = false;
       _result = null;
       _resetEntry();
@@ -98,10 +125,17 @@ class Calculator {
       return;
     }
 
+    final entryStr = _formatEntryForExpression();
     final entry = _commitEntry();
+
     if (entry != null) {
       if (_accumulator == null) {
+        if (entry is _ScalarOperand) {
+          _error = 'tap a unit first';
+          return;
+        }
         _accumulator = entry;
+        _expressionParts.add(entryStr);
       } else if (_pendingOp != null) {
         try {
           _accumulator = _apply(_accumulator!, _pendingOp!, entry);
@@ -109,6 +143,15 @@ class Calculator {
           _error = e.message;
           return;
         }
+        _expressionParts.add(entryStr);
+      }
+      _expressionParts.add(_opSymbol(op));
+    } else {
+      // No new entry — user changed their mind on the operator. Replace the
+      // trailing op symbol if there is one.
+      if (_expressionParts.isNotEmpty &&
+          _isOperatorString(_expressionParts.last)) {
+        _expressionParts[_expressionParts.length - 1] = _opSymbol(op);
       }
     }
     _pendingOp = op;
@@ -119,10 +162,17 @@ class Calculator {
     if (_error != null) return;
     if (_showingResult) return;
 
+    final entryStr = _formatEntryForExpression();
     final entry = _commitEntry();
 
     if (_accumulator == null) {
+      if (entry == null) return;
+      if (entry is _ScalarOperand) {
+        _error = 'tap a unit first';
+        return;
+      }
       _accumulator = entry;
+      _expressionParts.add(entryStr);
     } else if (_pendingOp != null && entry != null) {
       try {
         _accumulator = _apply(_accumulator!, _pendingOp!, entry);
@@ -130,13 +180,17 @@ class Calculator {
         _error = e.message;
         return;
       }
+      _expressionParts.add(entryStr);
+    } else if (entry == null &&
+        _expressionParts.isNotEmpty &&
+        _isOperatorString(_expressionParts.last)) {
+      // Trailing operator with no second operand: drop it from the expression.
+      _expressionParts.removeLast();
     }
 
     if (_accumulator is _LengthOperand) {
       _result = (_accumulator as _LengthOperand).value;
       _showingResult = true;
-    } else if (_accumulator is _ScalarOperand) {
-      _error = 'no unit';
     }
   }
 
@@ -157,6 +211,7 @@ class Calculator {
       ..write(s.substring(0, s.length - 1));
     if (last == '.') _hasDecimal = false;
     if (last == '/') _hasSlash = false;
+    if (last == ' ') _hasSpace = false;
   }
 
   void toggleSystem() {
@@ -194,10 +249,33 @@ class Calculator {
         : _ScalarOperand(value);
   }
 
+  String _formatEntryForExpression() {
+    if (_buffer.isEmpty) return '';
+    final unit = _entryUnit != null ? ' ${_entryUnit!.symbol}' : '';
+    return '$_buffer$unit';
+  }
+
+  static String _opSymbol(CalcOp op) {
+    switch (op) {
+      case CalcOp.add:
+        return '+';
+      case CalcOp.subtract:
+        return '−';
+      case CalcOp.multiply:
+        return '×';
+      case CalcOp.divide:
+        return '÷';
+    }
+  }
+
+  static bool _isOperatorString(String s) =>
+      s == '+' || s == '−' || s == '×' || s == '÷';
+
   void _resetEntry() {
     _buffer.clear();
     _hasDecimal = false;
     _hasSlash = false;
+    _hasSpace = false;
     _entryUnit = null;
   }
 
@@ -208,6 +286,7 @@ class Calculator {
     _showingResult = false;
     _result = null;
     _error = null;
+    _expressionParts.clear();
   }
 
   _Operand _apply(_Operand a, CalcOp op, _Operand b) {
@@ -219,7 +298,15 @@ class Calculator {
             op == CalcOp.add ? a.value + b.value : a.value - b.value,
           );
         }
-        throw _CalcError('+/− require units on both sides');
+        if (a is _LengthOperand && b is _ScalarOperand) {
+          // Subsequent scalar inherits the running unit.
+          final inferred = Length.of(b.value, a.value.displayUnit);
+          return _LengthOperand(
+            op == CalcOp.add ? a.value + inferred : a.value - inferred,
+          );
+        }
+        // a is ScalarOperand shouldn't happen given the first-value check.
+        throw _CalcError('+/− require units');
       case CalcOp.multiply:
         if (a is _LengthOperand && b is _ScalarOperand) {
           return _LengthOperand(a.value * b.value);

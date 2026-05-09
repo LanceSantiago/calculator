@@ -10,6 +10,7 @@ void main() {
       expect(calc.display, '0');
       expect(calc.error, isNull);
       expect(calc.hasResult, isFalse);
+      expect(calc.expression, '');
     });
   });
 
@@ -61,17 +62,17 @@ void main() {
       expect(calc.display, '0');
     });
 
-    test('decimal followed by fraction bar is ignored', () {
+    test('decimal then fraction bar drops the slash', () {
       final calc = Calculator()
         ..digit(5)
         ..decimalPoint()
         ..digit(5)
         ..fractionBar()
         ..digit(2);
-      expect(calc.display, '5.52'); // the slash and following digit are dropped... actually check impl
+      expect(calc.display, '5.52');
     });
 
-    test('fraction bar followed by decimal is ignored', () {
+    test('fraction bar then decimal point drops the dot', () {
       final calc = Calculator()
         ..digit(1)
         ..fractionBar()
@@ -126,6 +127,65 @@ void main() {
       calc.clear();
       expect(calc.display, '0');
       expect(calc.error, isNull);
+      expect(calc.expression, '');
+    });
+  });
+
+  group('Calculator mixed-number entry', () {
+    test('Mix separator builds a mixed number', () {
+      final calc = Calculator()
+        ..digit(1)..digit(1)
+        ..mixedSeparator()
+        ..digit(3)
+        ..fractionBar()
+        ..digit(4)
+        ..unit(LengthUnit.inch);
+      expect(calc.display, '11 3/4 in');
+    });
+
+    test('Mix-built operand commits to a single Length', () {
+      final calc = Calculator()
+        ..digit(1)..digit(1)
+        ..mixedSeparator()
+        ..digit(3)..fractionBar()..digit(4)
+        ..unit(LengthUnit.inch)
+        ..equals();
+      // 11 3/4 in = 47/4 in
+      expect(calc.result, Length.of(Rational.fromInts(47, 4), LengthUnit.inch));
+    });
+
+    test('Mix is rejected after a decimal point', () {
+      final calc = Calculator()
+        ..digit(5)
+        ..decimalPoint()
+        ..digit(5)
+        ..mixedSeparator()
+        ..digit(3);
+      expect(calc.display, '5.53');
+    });
+
+    test('Mix is rejected on an empty buffer', () {
+      final calc = Calculator()..mixedSeparator();
+      expect(calc.display, '0');
+    });
+
+    test('backspace clears the Mix space', () {
+      final calc = Calculator()
+        ..digit(1)..digit(1)
+        ..mixedSeparator();
+      expect(calc.display, '11 ');
+      calc.backspace();
+      expect(calc.display, '11');
+    });
+
+    test('fraction bar is rejected immediately after Mix space', () {
+      // Need a numerator digit between Mix space and slash, otherwise we'd
+      // produce "11 /" which the parser would reject.
+      final calc = Calculator()
+        ..digit(1)..digit(1)
+        ..mixedSeparator()
+        ..fractionBar();
+      expect(calc.display, '11 ');
     });
   });
 
@@ -181,8 +241,7 @@ void main() {
       expect(calc.result, Length.of(Rational.fromInt(3), LengthUnit.meter));
     });
 
-    test('chained: 5 m + 1 m × 2 evaluates left-to-right (chained calc, not order of ops)', () {
-      // Chained calc: ((5 m + 1 m) × 2) = 12 m. Not 5m + 2m = 7m.
+    test('chained left-to-right (no order of ops): 5 m + 1 m × 2 = 12 m', () {
       final calc = Calculator()
         ..digit(5)..unit(LengthUnit.meter)
         ..operatorPlus()
@@ -208,7 +267,6 @@ void main() {
         ..operatorPlus()
         ..digit(3)..unit(LengthUnit.meter)
         ..equals();
-      // Now press + 1 m =
       calc.operatorPlus();
       calc.digit(1);
       calc.unit(LengthUnit.meter);
@@ -226,23 +284,67 @@ void main() {
     });
   });
 
-  group('Calculator errors', () {
-    test('Length + scalar errors', () {
+  group('Calculator unit inheritance', () {
+    test('5 m + 3 (no unit) inherits m → 8 m', () {
       final calc = Calculator()
         ..digit(5)..unit(LengthUnit.meter)
         ..operatorPlus()
-        ..digit(3) // no unit
+        ..digit(3) // no unit on second
         ..equals();
-      expect(calc.error, isNotNull);
+      expect(calc.result, Length.of(Rational.fromInt(8), LengthUnit.meter));
     });
 
-    test('Length × Length errors (we do not support area)', () {
+    test('5 ft + 1/2 (no unit) inherits ft → 5 1/2 ft = 66 in', () {
+      final calc = Calculator()
+        ..digit(5)..unit(LengthUnit.foot)
+        ..operatorPlus()
+        ..digit(1)..fractionBar()..digit(2)
+        ..equals();
+      // 5 ft + 0.5 ft = 5.5 ft = 11/2 ft
+      expect(calc.result, Length.of(Rational.fromInts(11, 2), LengthUnit.foot));
+    });
+
+    test('chained inheritance: 5 m × 3 + 2 = 17 m (2 inherits)', () {
+      final calc = Calculator()
+        ..digit(5)..unit(LengthUnit.meter)
+        ..operatorTimes()
+        ..digit(3)
+        ..operatorPlus()
+        ..digit(2)
+        ..equals();
+      expect(calc.result, Length.of(Rational.fromInt(17), LengthUnit.meter));
+    });
+  });
+
+  group('Calculator first-value-needs-unit rule', () {
+    test('scalar first operand on operator press errors', () {
+      final calc = Calculator()
+        ..digit(5)
+        ..operatorPlus();
+      expect(calc.error, 'tap a unit first');
+    });
+
+    test('scalar first operand on equals errors', () {
+      final calc = Calculator()
+        ..digit(5)
+        ..equals();
+      expect(calc.error, 'tap a unit first');
+    });
+
+    test('scalar × scalar errors at first operator press', () {
+      final calc = Calculator()
+        ..digit(2)
+        ..operatorTimes();
+      expect(calc.error, 'tap a unit first');
+    });
+
+    test('Length × Length still errors (no area)', () {
       final calc = Calculator()
         ..digit(2)..unit(LengthUnit.meter)
         ..operatorTimes()
         ..digit(3)..unit(LengthUnit.meter)
         ..equals();
-      expect(calc.error, isNotNull);
+      expect(calc.error, 'cannot multiply two lengths');
     });
 
     test('division by zero errors', () {
@@ -251,15 +353,13 @@ void main() {
         ..operatorDivide()
         ..digit(0)
         ..equals();
-      expect(calc.error, isNotNull);
+      expect(calc.error, 'divide by zero');
     });
 
     test('clear recovers from error', () {
       final calc = Calculator()
-        ..digit(5)..unit(LengthUnit.meter)
-        ..operatorPlus()
-        ..digit(3)
-        ..equals();
+        ..digit(5)
+        ..operatorPlus(); // errors: scalar first
       expect(calc.error, isNotNull);
       calc.clear();
       expect(calc.error, isNull);
@@ -267,10 +367,75 @@ void main() {
     });
   });
 
+  group('Calculator expression breadcrumb', () {
+    test('empty until first operator', () {
+      final calc = Calculator()
+        ..digit(5)..unit(LengthUnit.meter);
+      expect(calc.expression, '');
+    });
+
+    test('after first operator: includes operand and op', () {
+      final calc = Calculator()
+        ..digit(5)..unit(LengthUnit.meter)
+        ..operatorPlus();
+      expect(calc.expression, '5 m +');
+    });
+
+    test('mid-chain: 5 m + 3 in − ', () {
+      final calc = Calculator()
+        ..digit(5)..unit(LengthUnit.meter)
+        ..operatorPlus()
+        ..digit(3)..unit(LengthUnit.inch)
+        ..operatorMinus();
+      expect(calc.expression, '5 m + 3 in −');
+    });
+
+    test('after equals: full expression without trailing op', () {
+      final calc = Calculator()
+        ..digit(2)..unit(LengthUnit.foot)
+        ..operatorPlus()
+        ..digit(3)..unit(LengthUnit.foot)
+        ..equals();
+      expect(calc.expression, '2 ft + 3 ft');
+    });
+
+    test('changing operator replaces the trailing op symbol', () {
+      final calc = Calculator()
+        ..digit(5)..unit(LengthUnit.meter)
+        ..operatorPlus()
+        ..operatorMinus();
+      expect(calc.expression, '5 m −');
+    });
+
+    test('continuing chain after equals carries the result forward', () {
+      final calc = Calculator()
+        ..digit(5)..unit(LengthUnit.meter)
+        ..operatorPlus()
+        ..digit(3)..unit(LengthUnit.meter)
+        ..equals();
+      calc.operatorPlus();
+      expect(calc.expression, '8 m +');
+    });
+
+    test('digit after equals clears the expression', () {
+      final calc = Calculator()
+        ..digit(5)..unit(LengthUnit.meter)
+        ..equals();
+      calc.digit(3);
+      expect(calc.expression, '');
+    });
+
+    test('clear resets the expression', () {
+      final calc = Calculator()
+        ..digit(5)..unit(LengthUnit.meter)
+        ..operatorPlus();
+      calc.clear();
+      expect(calc.expression, '');
+    });
+  });
+
   group('Calculator result system toggle', () {
     test('toggle from metric meters to imperial feet-inches', () {
-      // 1 m = 39.3700787... in = 3' 3 3/8" (rounded to 1/16: 3.937" * 16 ~= 63 → 63/16 inches per foot remainder)
-      // Actually 1 m = 1000 mm. In inches: 1000 / 25.4 ≈ 39.37". As feet-inches: 3' 3 3/8" (39.375")
       final calc = Calculator()
         ..digit(1)..unit(LengthUnit.meter)
         ..equals();
@@ -278,10 +443,7 @@ void main() {
       expect(calc.result?.displayUnit, LengthUnit.foot);
     });
 
-    test('autopick: 50 cm result toggles to inches not feet', () {
-      // 50 cm ≈ 19.69 in, which is < 1 ft, so should pick inches
-      // wait — 19.69 in is > 12 in, so it IS >= 1 ft. Let me adjust.
-      // Use 5 cm: 5 cm ≈ 1.97 in, < 12 in → inches
+    test('autopick: 5 cm result toggles to inches not feet', () {
       final calc = Calculator()
         ..digit(5)..unit(LengthUnit.centimeter)
         ..equals();
@@ -289,8 +451,7 @@ void main() {
       expect(calc.result?.displayUnit, LengthUnit.inch);
     });
 
-    test('autopick: 1 ft result toggles to metric meters', () {
-      // 1 ft = 304.8 mm = 30.48 cm. Since >= 1 cm but < 1 m, should pick cm.
+    test('autopick: 1 ft result toggles to centimeters', () {
       final calc = Calculator()
         ..digit(1)..unit(LengthUnit.foot)
         ..equals();
@@ -298,7 +459,7 @@ void main() {
       expect(calc.result?.displayUnit, LengthUnit.centimeter);
     });
 
-    test('autopick: 5 m result toggles to feet, then back to meters', () {
+    test('autopick: 5 m → ft → m round-trip', () {
       final calc = Calculator()
         ..digit(5)..unit(LengthUnit.meter)
         ..equals();
@@ -309,7 +470,6 @@ void main() {
     });
 
     test('autopick: tiny metric value picks mm', () {
-      // 5 mm result, toggle to imperial → inches; toggle back → mm
       final calc = Calculator()
         ..digit(5)..unit(LengthUnit.millimeter)
         ..equals();
