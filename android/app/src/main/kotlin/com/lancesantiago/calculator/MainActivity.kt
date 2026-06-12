@@ -1,4 +1,4 @@
-package com.lancesantiago.calculator
+package com.lancesantiago.construction_calculator
 
 import io.flutter.embedding.android.FlutterActivity
 

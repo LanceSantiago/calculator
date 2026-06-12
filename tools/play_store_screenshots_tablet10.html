@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Play Store screenshots — 10-inch tablet</title>
+<style>
+  :root {
+    --bg:               #101418;
+    --on-surface:       #e1e3e3;
+    --on-surface-var:   #c0c8cd;
+    --digit-bg:         #2a3034;
+    --digit-fg:         #e1e3e3;
+    --fn-bg:            #1d2226;
+    --fn-fg:            #c0c8cd;
+    --op-bg:            #3d4a52;
+    --op-fg:            #d6e3eb;
+    --unit-bg:          #2e4a4e;
+    --unit-fg:          #bfeaef;
+    --unit-active-bg:   #5fd4dc;
+    --unit-active-fg:   #003739;
+    --clear-bg:         #5b1a1a;
+    --clear-fg:         #ffdad5;
+    --eq-bg:            #a3cddf;
+    --eq-fg:            #003547;
+    --convert-bg:       #d6e3eb;
+    --convert-fg:       #102027;
+    --accent:           #ff8a3d;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: #1b1d1f;
+    color: #ddd;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", Roboto, sans-serif;
+  }
+
+  .help {
+    padding: 24px 32px;
+    max-width: 1200px;
+    line-height: 1.55;
+    font-size: 14px;
+  }
+  .help h1 { margin: 0 0 8px; font-size: 22px; }
+  .help code {
+    background: #2a2d31;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+  .help ol { padding-left: 22px; }
+
+  .sheet {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 56px;
+    padding: 32px;
+  }
+
+  .panel-wrap { display: flex; flex-direction: column; gap: 10px; }
+  .panel-wrap .label {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #9aa0a6;
+  }
+
+  /* Crop target — 2160 × 3840 (exact 9:16, larger than 7" so it reads as a
+     10" tablet shot; well within Play's 1080–7680 range). */
+  .panel {
+    width: 2160px;
+    height: 3840px;
+    background: var(--bg);
+    color: var(--on-surface);
+    position: relative;
+    overflow: hidden;
+    outline: 1px dashed #3a3f44;
+    outline-offset: 4px;
+  }
+
+  .panel header {
+    padding: 240px 200px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+  }
+  .eyebrow {
+    color: var(--accent);
+    font-size: 60px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .panel h2 {
+    margin: 0;
+    font-size: 180px;
+    line-height: 1.04;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: #f5f7f8;
+  }
+  .panel h2 em { color: var(--accent); font-style: normal; }
+  .panel p.sub {
+    margin: 0;
+    font-size: 72px;
+    line-height: 1.35;
+    color: #b6bdc2;
+    max-width: 1700px;
+  }
+
+  .calc {
+    position: absolute;
+    left: 280px;
+    right: 280px;
+    bottom: 200px;
+    height: 2240px;
+    background: #161a1d;
+    border-radius: 88px;
+    box-shadow:
+      0 56px 140px rgba(0,0,0,0.55),
+      0 0 0 1px rgba(255,255,255,0.04) inset;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .display {
+    flex: 3;
+    padding: 72px 76px 48px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    position: relative;
+  }
+  .topbar {
+    position: absolute;
+    top: 40px;
+    left: 44px;
+    right: 44px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .icon-btn {
+    width: 120px;
+    height: 120px;
+    border-radius: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--on-surface-var);
+    font-size: 60px;
+  }
+  .convert-chip {
+    padding: 26px 48px;
+    border-radius: 56px;
+    background: var(--convert-bg);
+    color: var(--convert-fg);
+    font-size: 48px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .expression {
+    text-align: right;
+    color: var(--on-surface-var);
+    font-size: 70px;
+    margin-bottom: 24px;
+    min-height: 84px;
+  }
+  .result {
+    text-align: right;
+    font-size: 252px;
+    font-weight: 300;
+    line-height: 1.0;
+    letter-spacing: -0.01em;
+    color: #f0f2f3;
+  }
+  .result .frac {
+    font-size: 152px;
+    vertical-align: 30px;
+    margin: 0 12px;
+  }
+
+  .keypad { flex: 7; display: flex; flex-direction: column; }
+  .row { flex: 1; display: flex; }
+  .key {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 86px;
+    font-weight: 500;
+    border: none;
+  }
+  .key.digit { background: var(--digit-bg); color: var(--digit-fg); }
+  .key.fn    { background: var(--fn-bg);    color: var(--fn-fg); font-size: 72px; }
+  .key.op    { background: var(--op-bg);    color: var(--op-fg); }
+  .key.unit  { background: var(--unit-bg);  color: var(--unit-fg); font-size: 68px; }
+  .key.unit.active { background: var(--unit-active-bg); color: var(--unit-active-fg); }
+  .key.clear { background: var(--clear-bg); color: var(--clear-fg); }
+  .key.eq    { background: var(--eq-bg);    color: var(--eq-fg); }
+
+  .convert-sheet {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    background: #1d2226;
+    border-radius: 64px 64px 0 0;
+    padding: 48px 0 64px;
+    box-shadow: 0 -40px 100px rgba(0,0,0,0.6);
+  }
+  .convert-sheet .grabber {
+    width: 180px;
+    height: 12px;
+    background: #4a5358;
+    border-radius: 6px;
+    margin: 0 auto 32px;
+  }
+  .convert-sheet h3 {
+    margin: 32px 76px 14px;
+    font-size: 38px;
+    letter-spacing: 0.14em;
+    color: var(--on-surface-var);
+    font-weight: 600;
+  }
+  .convert-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 32px 76px;
+    font-size: 60px;
+    color: #e1e3e3;
+  }
+  .convert-row .sym { color: var(--on-surface-var); font-size: 54px; }
+</style>
+</head>
+<body>
+
+<div class="help">
+  <h1>Play Store screenshots — 10-inch tablet (2160 × 3840)</h1>
+  <p>Each dashed frame is exactly <strong>2160 × 3840</strong> (9:16, within Play's 1,080–7,680 px range). Five panels — Play accepts up to 8.</p>
+  <ol>
+    <li>Open in Chrome / Edge.</li>
+    <li><code>F12</code> → Elements tab.</li>
+    <li>Right-click a <code>&lt;section class="panel"&gt;</code> node → <strong>Capture node screenshot</strong>.</li>
+    <li>You'll get a 2160×3840 PNG with no dashed border, ready to upload.</li>
+  </ol>
+  <p>Heads-up: these are big files. If a capture is sluggish or exceeds 8 MB, drop the page zoom to 25% before capturing — DevTools still exports at native resolution.</p>
+</div>
+
+<div class="sheet">
+
+  <!-- ============== PANEL 1 — HERO ============== -->
+  <div class="panel-wrap">
+    <span class="label">Tablet-10 panel 1 · 2160 × 3840</span>
+    <section class="panel">
+      <header>
+        <div class="eyebrow">Construction Calculator</div>
+        <h2>Feet &amp; inches.<br><em>Done right.</em></h2>
+        <p class="sub">Mixed-unit math with real fractions — built for the jobsite, works offline.</p>
+      </header>
+      <div class="calc">
+        <div class="display">
+          <div class="topbar"><div class="icon-btn">&#9432;</div></div>
+          <div class="expression"></div>
+          <div class="result">12' 4<span class="frac">1⁄2</span>"</div>
+        </div>
+        <div class="keypad">
+          <div class="row">
+            <button class="key unit">mm</button>
+            <button class="key unit">cm</button>
+            <button class="key unit">m</button>
+            <button class="key unit">in</button>
+            <button class="key unit">ft</button>
+            <button class="key unit">x²</button>
+          </div>
+          <div class="row">
+            <button class="key clear">C</button>
+            <button class="key fn">⌫</button>
+            <button class="key fn">a/b</button>
+            <button class="key op">÷</button>
+          </div>
+          <div class="row">
+            <button class="key digit">7</button>
+            <button class="key digit">8</button>
+            <button class="key digit">9</button>
+            <button class="key op">×</button>
+          </div>
+          <div class="row">
+            <button class="key digit">4</button>
+            <button class="key digit">5</button>
+            <button class="key digit">6</button>
+            <button class="key op">−</button>
+          </div>
+          <div class="row">
+            <button class="key digit">1</button>
+            <button class="key digit">2</button>
+            <button class="key digit">3</button>
+            <button class="key op">+</button>
+          </div>
+          <div class="row">
+            <button class="key fn">_ _/_</button>
+            <button class="key digit">0</button>
+            <button class="key digit">.</button>
+            <button class="key eq">=</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============== PANEL 2 — MIXED-UNIT MATH ============== -->
+  <div class="panel-wrap">
+    <span class="label">Tablet-10 panel 2 · 2160 × 3840</span>
+    <section class="panel">
+      <header>
+        <div class="eyebrow">Mixed-unit math</div>
+        <h2>Add feet and inches <em>the way you write them.</em></h2>
+        <p class="sub">No converting back and forth — chain operations, keep your units.</p>
+      </header>
+      <div class="calc">
+        <div class="display">
+          <div class="topbar">
+            <div class="icon-btn">&#9432;</div>
+            <div class="convert-chip">⇄ Convert</div>
+          </div>
+          <div class="expression">8' 3" + 4' 1 1⁄2" =</div>
+          <div class="result">12' 4<span class="frac">1⁄2</span>"</div>
+        </div>
+        <div class="keypad">
+          <div class="row">
+            <button class="key unit">mm</button>
+            <button class="key unit">cm</button>
+            <button class="key unit">m</button>
+            <button class="key unit">in</button>
+            <button class="key unit">ft</button>
+            <button class="key unit">x²</button>
+          </div>
+          <div class="row">
+            <button class="key clear">C</button>
+            <button class="key fn">⌫</button>
+            <button class="key fn">a/b</button>
+            <button class="key op">÷</button>
+          </div>
+          <div class="row">
+            <button class="key digit">7</button>
+            <button class="key digit">8</button>
+            <button class="key digit">9</button>
+            <button class="key op">×</button>
+          </div>
+          <div class="row">
+            <button class="key digit">4</button>
+            <button class="key digit">5</button>
+            <button class="key digit">6</button>
+            <button class="key op">−</button>
+          </div>
+          <div class="row">
+            <button class="key digit">1</button>
+            <button class="key digit">2</button>
+            <button class="key digit">3</button>
+            <button class="key op">+</button>
+          </div>
+          <div class="row">
+            <button class="key fn">_ _/_</button>
+            <button class="key digit">0</button>
+            <button class="key digit">.</button>
+            <button class="key eq">=</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============== PANEL 3 — FRACTIONS ============== -->
+  <div class="panel-wrap">
+    <span class="label">Tablet-10 panel 3 · 2160 × 3840</span>
+    <section class="panel">
+      <header>
+        <div class="eyebrow">Real fractions</div>
+        <h2>Type <em>3 1⁄2"</em> exactly like you'd say it.</h2>
+        <p class="sub">A dedicated <strong>a/b</strong> key and a mixed-number separator — no decimals required.</p>
+      </header>
+      <div class="calc">
+        <div class="display">
+          <div class="topbar"><div class="icon-btn">&#9432;</div></div>
+          <div class="expression">3 1⁄2" + 5⁄8"</div>
+          <div class="result">4<span class="frac">1⁄8</span>"</div>
+        </div>
+        <div class="keypad">
+          <div class="row">
+            <button class="key unit">mm</button>
+            <button class="key unit">cm</button>
+            <button class="key unit">m</button>
+            <button class="key unit">in</button>
+            <button class="key unit">ft</button>
+            <button class="key unit">x²</button>
+          </div>
+          <div class="row">
+            <button class="key clear">C</button>
+            <button class="key fn">⌫</button>
+            <button class="key fn" style="background: var(--unit-active-bg); color: var(--unit-active-fg);">a/b</button>
+            <button class="key op">÷</button>
+          </div>
+          <div class="row">
+            <button class="key digit">7</button>
+            <button class="key digit">8</button>
+            <button class="key digit">9</button>
+            <button class="key op">×</button>
+          </div>
+          <div class="row">
+            <button class="key digit">4</button>
+            <button class="key digit">5</button>
+            <button class="key digit">6</button>
+            <button class="key op">−</button>
+          </div>
+          <div class="row">
+            <button class="key digit">1</button>
+            <button class="key digit">2</button>
+            <button class="key digit">3</button>
+            <button class="key op">+</button>
+          </div>
+          <div class="row">
+            <button class="key fn" style="background: var(--unit-active-bg); color: var(--unit-active-fg);">_ _/_</button>
+            <button class="key digit">0</button>
+            <button class="key digit">.</button>
+            <button class="key eq">=</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============== PANEL 4 — AREA / x² ============== -->
+  <div class="panel-wrap">
+    <span class="label">Tablet-10 panel 4 · 2160 × 3840</span>
+    <section class="panel">
+      <header>
+        <div class="eyebrow">Area mode</div>
+        <h2>Square it.<br><em>Tap x².</em></h2>
+        <p class="sub">Multiply lengths to get square feet, square meters, square inches — whatever you started with.</p>
+      </header>
+      <div class="calc">
+        <div class="display">
+          <div class="topbar">
+            <div class="icon-btn">&#9432;</div>
+            <div class="convert-chip">⇄ Convert</div>
+          </div>
+          <div class="expression">15' × 12' =</div>
+          <div class="result">180 ft²</div>
+        </div>
+        <div class="keypad">
+          <div class="row">
+            <button class="key unit">mm</button>
+            <button class="key unit">cm</button>
+            <button class="key unit">m</button>
+            <button class="key unit">in</button>
+            <button class="key unit">ft</button>
+            <button class="key unit active">x²</button>
+          </div>
+          <div class="row">
+            <button class="key clear">C</button>
+            <button class="key fn">⌫</button>
+            <button class="key fn">a/b</button>
+            <button class="key op">÷</button>
+          </div>
+          <div class="row">
+            <button class="key digit">7</button>
+            <button class="key digit">8</button>
+            <button class="key digit">9</button>
+            <button class="key op">×</button>
+          </div>
+          <div class="row">
+            <button class="key digit">4</button>
+            <button class="key digit">5</button>
+            <button class="key digit">6</button>
+            <button class="key op">−</button>
+          </div>
+          <div class="row">
+            <button class="key digit">1</button>
+            <button class="key digit">2</button>
+            <button class="key digit">3</button>
+            <button class="key op">+</button>
+          </div>
+          <div class="row">
+            <button class="key fn">_ _/_</button>
+            <button class="key digit">0</button>
+            <button class="key digit">.</button>
+            <button class="key eq">=</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============== PANEL 5 — CONVERT SHEET ============== -->
+  <div class="panel-wrap">
+    <span class="label">Tablet-10 panel 5 · 2160 × 3840</span>
+    <section class="panel">
+      <header>
+        <div class="eyebrow">Metric ⇄ Imperial</div>
+        <h2>Convert any result <em>without losing it.</em></h2>
+        <p class="sub">One tap on the result. Pick a unit. Keep going.</p>
+      </header>
+      <div class="calc">
+        <div class="display">
+          <div class="topbar">
+            <div class="icon-btn">&#9432;</div>
+            <div class="convert-chip">⇄ Convert</div>
+          </div>
+          <div class="expression">3.75 m</div>
+          <div class="result">12' 3<span class="frac">5⁄8</span>"</div>
+        </div>
+        <div class="keypad" style="filter: brightness(0.5);">
+          <div class="row">
+            <button class="key unit">mm</button>
+            <button class="key unit">cm</button>
+            <button class="key unit">m</button>
+            <button class="key unit">in</button>
+            <button class="key unit">ft</button>
+            <button class="key unit">x²</button>
+          </div>
+          <div class="row">
+            <button class="key clear">C</button>
+            <button class="key fn">⌫</button>
+            <button class="key fn">a/b</button>
+            <button class="key op">÷</button>
+          </div>
+          <div class="row">
+            <button class="key digit">7</button>
+            <button class="key digit">8</button>
+            <button class="key digit">9</button>
+            <button class="key op">×</button>
+          </div>
+          <div class="row">
+            <button class="key digit">4</button>
+            <button class="key digit">5</button>
+            <button class="key digit">6</button>
+            <button class="key op">−</button>
+          </div>
+        </div>
+        <div class="convert-sheet">
+          <div class="grabber"></div>
+          <h3>METRIC</h3>
+          <div class="convert-row"><span>Millimeter</span><span class="sym">mm</span></div>
+          <div class="convert-row"><span>Centimeter</span><span class="sym">cm</span></div>
+          <div class="convert-row"><span>Meter</span><span class="sym">m</span></div>
+          <h3>IMPERIAL</h3>
+          <div class="convert-row"><span>Inch</span><span class="sym">in</span></div>
+          <div class="convert-row"><span>Foot</span><span class="sym">ft</span></div>
+          <div class="convert-row"><span>Yard</span><span class="sym">yd</span></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+</div>
+
+</body>
+</html>

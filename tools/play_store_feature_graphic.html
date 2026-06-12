@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Play Store feature graphic — Construction Calculator</title>
+<style>
+  :root {
+    --accent:        #ff8a3d;
+    --accent-deep:   #e26a1a;
+    --bg-1:          #1a1f24;
+    --bg-2:          #0e1216;
+    --on:            #f5f7f8;
+    --on-dim:        #b6bdc2;
+
+    --digit-bg:      #2a3034;
+    --fn-bg:         #1d2226;
+    --op-bg:         #3d4a52;
+    --op-fg:         #d6e3eb;
+    --unit-bg:       #2e4a4e;
+    --unit-fg:       #bfeaef;
+    --eq-bg:         #ff8a3d;
+    --eq-fg:         #2a1100;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: #1b1d1f;
+    color: #ddd;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", Roboto, sans-serif;
+  }
+
+  .help {
+    padding: 24px 32px;
+    max-width: 1100px;
+    line-height: 1.55;
+    font-size: 14px;
+  }
+  .help h1 { margin: 0 0 8px; font-size: 22px; }
+  .help code {
+    background: #2a2d31;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+  .help ol { padding-left: 22px; }
+
+  .panel-wrap {
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .panel-wrap .label {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #9aa0a6;
+  }
+
+  /* Crop target: exactly 1024 × 500. */
+  .banner {
+    width: 1024px;
+    height: 500px;
+    position: relative;
+    overflow: hidden;
+    color: var(--on);
+    background:
+      radial-gradient(120% 160% at 0% 50%, #2a1c12 0%, var(--bg-1) 38%, var(--bg-2) 100%);
+    outline: 1px dashed #3a3f44;
+    outline-offset: 4px;
+  }
+
+  /* Soft orange glow behind the headline */
+  .banner::before {
+    content: "";
+    position: absolute;
+    left: -120px;
+    top: -120px;
+    width: 540px;
+    height: 540px;
+    background: radial-gradient(closest-side, rgba(255, 138, 61, 0.35), transparent 70%);
+    filter: blur(10px);
+    pointer-events: none;
+  }
+
+  /* Grid lines, very subtle (blueprint vibe) */
+  .banner::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+  }
+
+  .copy {
+    position: absolute;
+    left: 56px;
+    top: 70px;
+    right: 470px;
+    z-index: 2;
+  }
+  .eyebrow {
+    color: var(--accent);
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  h1.title {
+    margin: 0 0 14px;
+    font-size: 64px;
+    line-height: 1.02;
+    font-weight: 800;
+    letter-spacing: -0.015em;
+    color: #ffffff;
+  }
+  h1.title em {
+    color: var(--accent);
+    font-style: normal;
+  }
+  p.tag {
+    margin: 0 0 22px;
+    font-size: 22px;
+    line-height: 1.35;
+    color: var(--on-dim);
+    max-width: 460px;
+  }
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .chip {
+    font-size: 14px;
+    font-weight: 600;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.06);
+    color: #e7ebee;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .chip.accent {
+    background: rgba(255, 138, 61, 0.18);
+    color: #ffd2b3;
+    border-color: rgba(255, 138, 61, 0.45);
+  }
+
+  /* Calculator mock on the right, tilted */
+  .calc {
+    position: absolute;
+    right: -40px;
+    top: 38px;
+    width: 420px;
+    height: 480px;
+    background: #161a1d;
+    border-radius: 36px;
+    box-shadow:
+      0 30px 60px rgba(0,0,0,0.55),
+      0 0 0 1px rgba(255,255,255,0.05) inset,
+      0 0 0 6px rgba(255, 138, 61, 0.10);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform: rotate(-6deg);
+    transform-origin: center center;
+    z-index: 1;
+  }
+  .display {
+    flex: 3;
+    padding: 18px 22px 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+  .expr {
+    text-align: right;
+    color: var(--on-dim);
+    font-size: 16px;
+    margin-bottom: 4px;
+  }
+  .result {
+    text-align: right;
+    font-size: 54px;
+    font-weight: 300;
+    line-height: 1.0;
+    letter-spacing: -0.01em;
+    color: #f0f2f3;
+  }
+  .result .frac {
+    font-size: 32px;
+    vertical-align: 8px;
+  }
+
+  .keypad {
+    flex: 7;
+    display: flex;
+    flex-direction: column;
+  }
+  .row { flex: 1; display: flex; }
+  .key {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 500;
+    border: none;
+    color: #e1e3e3;
+  }
+  .key.digit { background: var(--digit-bg); }
+  .key.fn    { background: var(--fn-bg);    color: #c0c8cd; font-size: 15px; }
+  .key.op    { background: var(--op-bg);    color: var(--op-fg); }
+  .key.unit  { background: var(--unit-bg);  color: var(--unit-fg); font-size: 14px; }
+  .key.clear { background: #5b1a1a; color: #ffdad5; }
+  .key.eq    { background: var(--eq-bg);    color: var(--eq-fg); font-weight: 700; }
+
+  /* Play crops the outer edges sometimes — keep critical content inside ~80px of each side. */
+  .safe-hint {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border: 1px dashed rgba(255,255,255,0.0); /* hidden on capture, just docs */
+  }
+</style>
+</head>
+<body>
+
+<div class="help">
+  <h1>Play Store feature graphic — 1024 × 500</h1>
+  <p>The dashed frame below is exactly <strong>1024 × 500</strong> (Play's required size).</p>
+  <ol>
+    <li>Open in Chrome/Edge → <code>F12</code> → Elements.</li>
+    <li>Right-click the <code>&lt;section class="banner"&gt;</code> node → <strong>Capture node screenshot</strong>.</li>
+    <li>You'll get a clean 1024×500 PNG ready to upload.</li>
+  </ol>
+  <p>Note: Google sometimes crops ~80px from each side on smaller surfaces, so the headline and calculator are kept away from the edges.</p>
+</div>
+
+<div class="panel-wrap">
+  <span class="label">Feature graphic · 1024 × 500</span>
+  <section class="banner">
+    <div class="copy">
+      <div class="eyebrow">Construction Calculator</div>
+      <h1 class="title">Feet, inches,<br><em>fractions.</em></h1>
+      <p class="tag">Mixed-unit math built for the jobsite. Offline. No ads.</p>
+      <div class="chips">
+        <span class="chip accent">ft + in</span>
+        <span class="chip">a/b fractions</span>
+        <span class="chip">m · cm · mm</span>
+        <span class="chip">area (ft² / m²)</span>
+      </div>
+    </div>
+
+    <div class="calc" aria-hidden="true">
+      <div class="display">
+        <div class="expr">8' 3" + 4' 1 1⁄2"</div>
+        <div class="result">12' 4<span class="frac">1⁄2</span>"</div>
+      </div>
+      <div class="keypad">
+        <div class="row">
+          <button class="key unit">mm</button>
+          <button class="key unit">cm</button>
+          <button class="key unit">m</button>
+          <button class="key unit">in</button>
+          <button class="key unit">ft</button>
+          <button class="key unit">x²</button>
+        </div>
+        <div class="row">
+          <button class="key clear">C</button>
+          <button class="key fn">⌫</button>
+          <button class="key fn">a/b</button>
+          <button class="key op">÷</button>
+        </div>
+        <div class="row">
+          <button class="key digit">7</button>
+          <button class="key digit">8</button>
+          <button class="key digit">9</button>
+          <button class="key op">×</button>
+        </div>
+        <div class="row">
+          <button class="key digit">4</button>
+          <button class="key digit">5</button>
+          <button class="key digit">6</button>
+          <button class="key op">−</button>
+        </div>
+        <div class="row">
+          <button class="key digit">1</button>
+          <button class="key digit">2</button>
+          <button class="key digit">3</button>
+          <button class="key op">+</button>
+        </div>
+        <div class="row">
+          <button class="key fn">_ _/_</button>
+          <button class="key digit">0</button>
+          <button class="key digit">.</button>
+          <button class="key eq">=</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+</body>
+</html>
